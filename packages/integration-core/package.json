@@ -1,0 +1,55 @@
+{
+  "name": "@cortex/integration-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./framework": "./src/framework/index.ts",
+    "./common": "./src/common/index.ts",
+    "./shared-stubs": "./src/shared-stubs/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noCheck",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke:slack": "bun run scripts/smoke-slack.ts"
+  },
+  "dependencies": {
+    "@cortex/shared": "workspace:*",
+    "@linear/sdk": "7.0.1",
+    "@notionhq/client": "2.2.14",
+    "@slack/web-api": "7.9.0",
+    "@tryfabric/martian": "1.2.4",
+    "ai": "^4.3.16",
+    "axios": "1.15.2",
+    "axios-retry": "^4.5.0",
+    "dayjs": "1.11.9",
+    "form-data": "^4.0.2",
+    "googleapis": "129.0.0",
+    "googleapis-common": "7.2.0",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
+    "jsonwebtoken": "9.0.1",
+    "mailparser": "3.9.3",
+    "mime-types": "2.1.35",
+    "nodemailer": "8.0.5",
+    "notion-to-md": "3.1.1",
+    "slackify-markdown": "4.4.0",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "9.0.10",
+    "@types/mailparser": "3.4.6",
+    "@types/mime-types": "2.1.1",
+    "@types/node": "^20",
+    "@types/nodemailer": "7.0.11",
+    "typescript": "^5.8.2"
+  }
+}

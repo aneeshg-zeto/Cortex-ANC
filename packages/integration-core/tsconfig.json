@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "strict": false,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "isolatedModules": false,
+    "paths": {
+      "@cortex/integration-core/framework": ["./src/framework/index.ts"],
+      "@cortex/integration-core/framework/*": ["./src/framework/*"],
+      "@cortex/integration-core/common": ["./src/common/index.ts"],
+      "@cortex/integration-core/common/*": ["./src/common/*"],
+      "@cortex/integration-core/shared-stubs": ["./src/shared-stubs/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.spec.ts", "scripts/**/*"]
+}

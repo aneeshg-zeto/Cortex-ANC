@@ -1,0 +1,11 @@
+{
+  "name": "@cortex/ingestion-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@cortex/graph-core": "workspace:*",
+    "@cortex/integration-core": "workspace:*"
+  }
+}
