@@ -9,15 +9,14 @@ import { Client } from '@notionhq/client';
 import { NotionFieldMapping } from './models';
 import { notionAuth } from '../auth';
 
-export type NotionAuthValue = AppConnectionValueForAuthProperty<
-  typeof notionAuth
->;
+export type NotionAuthValue = AppConnectionValueForAuthProperty<typeof notionAuth>;
 
 export function getNotionToken(auth: NotionAuthValue): string {
   if (auth.type === AppConnectionType.CUSTOM_AUTH) {
-    return auth.props.accessToken;
+    const props = auth.props as { accessToken: string };
+    return props.accessToken;
   }
-  return getAccessTokenOrThrow(auth);
+  return getAccessTokenOrThrow(auth as unknown as Parameters<typeof getAccessTokenOrThrow>[0]);
 }
 
 export const notionCommon = {
@@ -26,8 +25,7 @@ export const notionCommon = {
     auth: notionAuth,
     displayName: 'Database',
     required: true,
-    description:
-      'Choose the Notion database you want to work with from your workspace',
+    description: 'Choose the Notion database you want to work with from your workspace',
     refreshers: [],
     options: async ({ auth }) => {
       if (!auth) {
@@ -68,8 +66,7 @@ export const notionCommon = {
       if (!auth || !database_id) {
         return {
           disabled: true,
-          placeholder:
-            'Please connect your Notion account first and select database',
+          placeholder: 'Please connect your Notion account first and select database',
           options: [],
         };
       }
@@ -96,16 +93,14 @@ export const notionCommon = {
   archived_database_item_id: Property.Dropdown({
     auth: notionAuth,
     displayName: 'Archived Item',
-    description:
-      'Choose which archived item to restore from the selected database',
+    description: 'Choose which archived item to restore from the selected database',
     required: true,
     refreshers: ['database_id'],
     options: async ({ auth, database_id }) => {
       if (!auth || !database_id) {
         return {
           disabled: true,
-          placeholder:
-            'Please connect your Notion account first and select a database',
+          placeholder: 'Please connect your Notion account first and select a database',
           options: [],
         };
       }
@@ -145,8 +140,7 @@ export const notionCommon = {
       } catch (error: any) {
         return {
           disabled: true,
-          placeholder:
-            'Error loading archived items. Please check your database permissions.',
+          placeholder: 'Error loading archived items. Please check your database permissions.',
           options: [],
         };
       }
@@ -161,8 +155,7 @@ export const notionCommon = {
       if (!auth || !database_id) {
         return {
           disabled: true,
-          placeholder:
-            'Please connect your Notion account first and select database',
+          placeholder: 'Please connect your Notion account first and select database',
           options: [],
         };
       }
@@ -203,9 +196,7 @@ export const notionCommon = {
                 options: {
                   disabled: false,
                   options: results
-                    .filter(
-                      (user) => user.type === 'person' && user.name !== null
-                    )
+                    .filter((user) => user.type === 'person' && user.name !== null)
                     .map((option: { id: string; name: any }) => {
                       return {
                         label: option.name,
@@ -216,15 +207,10 @@ export const notionCommon = {
               });
             } else {
               fields[property.name] =
-                NotionFieldMapping[property.type].buildActivepieceType(
-                  property
-                );
+                NotionFieldMapping[property.type].buildActivepieceType(property);
             }
           } catch (e) {
-            console.error(
-              'Notion: could not generate dynamic input property',
-              e
-            );
+            console.error('Notion: could not generate dynamic input property', e);
           }
         }
       } catch (e) {
@@ -242,8 +228,7 @@ export const notionCommon = {
       if (!auth || !database_id) {
         return {
           disabled: true,
-          placeholder:
-            'Please connect your Notion account first and select database',
+          placeholder: 'Please connect your Notion account first and select database',
           options: [],
         };
       }
@@ -284,9 +269,7 @@ export const notionCommon = {
                 options: {
                   disabled: false,
                   options: results
-                    .filter(
-                      (user) => user.type === 'person' && user.name !== null
-                    )
+                    .filter((user) => user.type === 'person' && user.name !== null)
                     .map((option) => ({
                       label: option.name as string,
                       value: option.id,
@@ -295,15 +278,10 @@ export const notionCommon = {
               });
             } else {
               fields[property.name] =
-                NotionFieldMapping[property.type].buildActivepieceType(
-                  property
-                );
+                NotionFieldMapping[property.type].buildActivepieceType(property);
             }
           } catch (e) {
-            console.error(
-              'Notion: could not generate dynamic filter property',
-              e
-            );
+            console.error('Notion: could not generate dynamic filter property', e);
           }
         }
       } catch (e) {
@@ -353,7 +331,7 @@ export async function getPages(
   sort?: {
     property: string;
     direction: 'ascending' | 'descending';
-  }
+  },
 ): Promise<any[]> {
   const notion = new Client({
     auth: getNotionToken(auth),

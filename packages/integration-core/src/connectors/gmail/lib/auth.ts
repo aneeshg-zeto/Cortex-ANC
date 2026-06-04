@@ -59,31 +59,30 @@ export const gmailAuth = [
   }),
 ];
 
-export type GmailAuthValue = AppConnectionValueForAuthProperty<
-  typeof gmailAuth
->;
+export type GmailAuthValue = AppConnectionValueForAuthProperty<typeof gmailAuth>;
 
-export async function createGoogleClient(
-  auth: GmailAuthValue
-): Promise<OAuth2Client> {
+export async function createGoogleClient(auth: GmailAuthValue): Promise<OAuth2Client> {
   if (auth.type === AppConnectionType.CUSTOM_AUTH) {
-    let serviceAccount;
+    const props = auth.props as { serviceAccount: string; userEmail?: string };
+    let serviceAccount: { client_email: string; private_key: string };
     try {
-      serviceAccount = JSON.parse(auth.props.serviceAccount);
+      serviceAccount = JSON.parse(props.serviceAccount) as {
+        client_email: string;
+        private_key: string;
+      };
     } catch {
-      throw new Error(
-        'Invalid Service Account JSON Key. Please provide a valid JSON string.'
-      );
+      throw new Error('Invalid Service Account JSON Key. Please provide a valid JSON string.');
     }
     return new google.auth.JWT({
       email: serviceAccount.client_email,
       key: serviceAccount.private_key,
       scopes: gmailServiceAccountScopes,
-      subject: auth.props.userEmail?.trim() || undefined,
+      subject: props.userEmail?.trim() || undefined,
     });
   }
   const authClient = new OAuth2Client();
-  authClient.setCredentials(auth);
+  const oauth = auth as { access_token?: string; refresh_token?: string };
+  authClient.setCredentials(oauth);
   return authClient;
 }
 
@@ -94,23 +93,25 @@ export const getAccessToken = async (auth: GmailAuthValue): Promise<string> => {
     if (response.token) {
       return response.token;
     } else {
-      throw new Error(
-        'Could not retrieve access token from service account json'
-      );
+      throw new Error('Could not retrieve access token from service account json');
     }
   }
-  return auth.access_token;
+  if (auth.type === AppConnectionType.OAUTH2) {
+    return (auth as unknown as { access_token: string }).access_token;
+  }
+  throw new Error('Unsupported Gmail auth type');
 };
 
 export async function getUserEmail(
   auth: GmailAuthValue,
-  authClient: OAuth2Client
+  authClient: OAuth2Client,
 ): Promise<string | undefined> {
   if (auth.type === AppConnectionType.CUSTOM_AUTH) {
-    return auth.props.userEmail?.trim();
+    const props = auth.props as { userEmail?: string };
+    return props.userEmail?.trim();
   }
   return (
-    (await google.oauth2({ version: 'v2', auth: authClient }).userinfo.get())
-      .data.email ?? undefined
+    (await google.oauth2({ version: 'v2', auth: authClient }).userinfo.get()).data.email ??
+    undefined
   );
 }

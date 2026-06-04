@@ -10,9 +10,7 @@ export class LinearClientWrapper {
   async createIssue(input: LinearDocument.IssueCreateInput) {
     return this.client.createIssue(input);
   }
-  async listIssueStates(
-    variables: LinearDocument.WorkflowStatesQueryVariables
-  ) {
+  async listIssueStates(variables: LinearDocument.WorkflowStatesQueryVariables) {
     return this.client.workflowStates(variables);
   }
   async listIssuePriorities() {
@@ -39,10 +37,7 @@ export class LinearClientWrapper {
   async listProjects(variables: LinearDocument.ProjectsQueryVariables = {}) {
     return this.client.projects(variables);
   }
-  async updateProject(
-    projectId: string,
-    input: LinearDocument.ProjectUpdateInput
-  ) {
+  async updateProject(projectId: string, input: LinearDocument.ProjectUpdateInput) {
     return this.client.updateProject(projectId, input);
   }
   async createComment(input: LinearDocument.CommentCreateInput) {
@@ -60,7 +55,7 @@ export class LinearClientWrapper {
   }
   async listTeamsTemplates(
     teamId: string,
-    variables: Omit<LinearDocument.Team_TemplatesQueryVariables, 'id'>
+    variables: Omit<LinearDocument.Team_TemplatesQueryVariables, 'id'>,
   ) {
     const team = await this.client.team(teamId);
     return team.templates(variables);
@@ -75,7 +70,7 @@ export class LinearClientWrapper {
         }
       }
     }`;
-    const result = await this.client.client.rawRequest(query) as {
+    const result = (await this.client.client.rawRequest(query)) as {
       data: {
         projectStatuses: {
           nodes: Array<{
@@ -93,6 +88,9 @@ export class LinearClientWrapper {
   }
 }
 
-export function makeClient(auth: AppConnectionValueForAuthProperty<typeof linearAuth>): LinearClientWrapper {
-  return new LinearClientWrapper(auth.secret_text);
+export function makeClient(
+  auth: AppConnectionValueForAuthProperty<typeof linearAuth>,
+): LinearClientWrapper {
+  const apiKey = (auth as { secret_text?: string }).secret_text ?? '';
+  return new LinearClientWrapper(apiKey);
 }

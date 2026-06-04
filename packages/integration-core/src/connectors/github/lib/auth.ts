@@ -1,8 +1,5 @@
 import { PieceAuth, Property } from '@cortex/integration-core/framework';
-import {
-  exchangeAppJwtForInstallationToken,
-  signGithubAppJwt,
-} from './common/auth-helpers';
+import { exchangeAppJwtForInstallationToken, signGithubAppJwt } from './common/auth-helpers';
 
 export const githubOAuth2Auth = PieceAuth.OAuth2({
   description:
@@ -41,13 +38,14 @@ export const githubAppAuth = PieceAuth.CustomAuth({
   validate: async ({ auth }) => {
     const { appId, installationId, privateKey } = auth;
     const jwt = trySignJwt({ appId, privateKey });
-    if (!jwt.ok) {
+    if (jwt.ok === false) {
       return { valid: false, error: jwt.error };
     }
     const exchange = await tryExchangeJwt({ jwt: jwt.value, installationId });
-    return exchange.ok
-      ? { valid: true }
-      : { valid: false, error: exchange.error };
+    if (exchange.ok === false) {
+      return { valid: false, error: exchange.error };
+    }
+    return { valid: true };
   },
 });
 
