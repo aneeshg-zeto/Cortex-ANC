@@ -58,6 +58,24 @@ CREATE TABLE IF NOT EXISTS cortex_agent_interactions (
   sources JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS qa_logs (
+  id TEXT PRIMARY KEY,
+  query TEXT NOT NULL,
+  answer TEXT,
+  verdict TEXT,
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS improvement_suggestions (
+  id TEXT PRIMARY KEY,
+  category TEXT NOT NULL,
+  suggestion TEXT NOT NULL,
+  confidence NUMERIC NOT NULL DEFAULT 0.0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 SQL
 
 echo "✅ cortex_documents table ready"

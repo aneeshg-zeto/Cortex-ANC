@@ -1,5 +1,6 @@
-# Dependencies
-node_modules/
+# Learning notes (local only)
+Learning.md
+
 
 # Local env & secrets
 .env

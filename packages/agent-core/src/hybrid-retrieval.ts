@@ -48,6 +48,8 @@ export async function hybridRetrieveContext(
   const hints = extractEntityHints(query);
 
   const graphLines: string[] = [];
+  const graphSources: SourceCitation[] = [];
+  const seenNodeIds = new Set<string>();
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl && hints.length > 0) {
     try {
@@ -55,10 +57,19 @@ export async function hybridRetrieveContext(
       for (const hint of hints.slice(0, 3)) {
         const nodes = await graph.findNodesByLabel(hint, 5);
         for (const node of nodes) {
+          if (seenNodeIds.has(node.id)) continue;
+          seenNodeIds.add(node.id);
           const { nodes: related, edges } = await graph.traverse(node.id, 2);
           graphLines.push(
             `Entity [${node.type}] ${node.label}: ${JSON.stringify(node.properties)}`,
           );
+          graphSources.push({
+            id: node.id,
+            title: `${node.type} ${node.label}`,
+            source: 'graph',
+            excerpt: JSON.stringify(node.properties).slice(0, 160),
+            score: 1,
+          });
           for (const edge of edges) {
             graphLines.push(`  → ${edge.type} → ${edge.toId}`);
           }
@@ -73,7 +84,10 @@ export async function hybridRetrieveContext(
     }
   }
 
-  const sources = toCitations(vectorResults);
+  const dedupedVector = vectorResults.filter(
+    (r, i, arr) => arr.findIndex((x) => x.id === r.id) === i,
+  );
+  const sources = [...toCitations(dedupedVector), ...graphSources];
   const vectorContext = vectorResults
     .map((r, i) => `[${i + 1}] (${r.metadata.source}) ${r.metadata.title}: ${r.text}`)
     .join('\n\n');

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { GlassCard } from '@cortex/ui';
 import { CortexNav } from '@/components/cortex-nav';
 
@@ -47,6 +48,20 @@ export default function AdminPage() {
           Self-improvement agent listens on <code>agent.interactions</code>.
         </p>
       </GlassCard>
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <Link href="/admin/connections" className="btn-outline-glass px-4 py-3 text-center text-sm">
+          Connections
+        </Link>
+        <Link href="/admin/logs" className="btn-outline-glass px-4 py-3 text-center text-sm">
+          Logs
+        </Link>
+        <Link
+          href="/admin/improvements"
+          className="btn-outline-glass px-4 py-3 text-center text-sm"
+        >
+          Improvements
+        </Link>
+      </div>
     </div>
   );
 }

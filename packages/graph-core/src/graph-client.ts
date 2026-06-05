@@ -66,7 +66,7 @@ export class GraphClient {
     return result.rows;
   }
 
-  async traverse(fromId: string, _depth = 2): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
+  async traverse(fromId: string, depth = 2): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
     const center = await this.pool.query<GraphNode>(
       `SELECT id, label, type, properties FROM cortex_nodes WHERE id = $1`,
       [fromId],
@@ -78,9 +78,19 @@ export class GraphClient {
       type: string;
       properties: Record<string, unknown>;
     }>(
-      `SELECT id, from_id, to_id, type, properties FROM cortex_edges
-       WHERE from_id = $1 OR to_id = $1 LIMIT 50`,
-      [fromId],
+      `WITH RECURSIVE walk AS (
+         SELECT id, from_id, to_id, type, properties, 1 AS lvl
+         FROM cortex_edges
+         WHERE from_id = $1 OR to_id = $1
+         UNION
+         SELECT e.id, e.from_id, e.to_id, e.type, e.properties, w.lvl + 1
+         FROM cortex_edges e
+         JOIN walk w ON e.from_id = w.to_id OR e.to_id = w.from_id
+         WHERE w.lvl < $2
+       )
+       SELECT DISTINCT id, from_id, to_id, type, properties FROM walk
+       LIMIT 100`,
+      [fromId, depth],
     );
     const nodeIds = new Set<string>([fromId]);
     for (const e of edgesResult.rows) {
@@ -101,6 +111,13 @@ export class GraphClient {
         properties: r.properties,
       })),
     };
+  }
+
+  async query<T extends pg.QueryResultRow = pg.QueryResultRow>(
+    text: string,
+    params?: unknown[],
+  ): Promise<pg.QueryResult<T>> {
+    return this.pool.query<T>(text, params);
   }
 
   async close(): Promise<void> {

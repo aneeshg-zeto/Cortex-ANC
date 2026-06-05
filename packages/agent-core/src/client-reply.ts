@@ -2,6 +2,7 @@ import { llmClient } from '@cortex/shared';
 
 import { hybridRetrieveContext } from './hybrid-retrieval';
 import type { SourceCitation } from './retrieval';
+import { requestWriteAction } from './tools/write-actions';
 
 export type ClientReplyResult = {
   draft: string;
@@ -19,5 +20,12 @@ export async function draftClientReply(emailContent: string): Promise<ClientRepl
     { agentRole: 'clientReply', temperature: 0.55, maxTokens: 512 },
   );
 
-  return { draft, sources };
+  const pendingApprovalId = await requestWriteAction({
+    actionType: 'send_email',
+    connector: 'gmail',
+    payload: { draft, originalEmail: emailContent },
+    requestedBy: 'clients-desk',
+  });
+
+  return { draft, sources, pendingApprovalId };
 }

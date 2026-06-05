@@ -15,6 +15,11 @@ async function logInteraction(query: string, answer: string, sources: unknown[])
        VALUES ($1, $2, $3, true, $4)`,
       [id, query, answer, JSON.stringify(sources)],
     );
+    await pool.query(
+      `INSERT INTO qa_logs (id, query, answer, verdict, reason)
+       VALUES ($1, $2, $3, 'pass', 'captured from executive desk')`,
+      [id, query, answer],
+    );
     await pool.end();
   }
   // Kafka logging runs in monitoring-agent via DB poll or separate worker when enabled

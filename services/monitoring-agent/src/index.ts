@@ -1,5 +1,4 @@
 import { createLogger, llmClient } from '@cortex/shared';
-import { createConsumer, TOPICS } from '@cortex/shared/kafka';
 import pg from 'pg';
 
 const log = createLogger('monitoring-agent');
@@ -32,32 +31,47 @@ async function maybeOpenRemediationPr(fix: string, query: string): Promise<void>
   log.info({ query, fix }, 'Would open GitHub PR via connector — stub for local dev');
 }
 
+async function runEvaluationSweep(pool: pg.Pool): Promise<void> {
+  const { rows } = await pool.query<Interaction>(
+    `SELECT id, query, answer, success, feedback
+     FROM cortex_agent_interactions
+     ORDER BY created_at DESC
+     LIMIT 100`,
+  );
+
+  for (const interaction of rows) {
+    const shouldEvaluate = interaction.success === false || !interaction.feedback;
+    if (!shouldEvaluate) continue;
+
+    const fix = await evaluateFailure(interaction);
+    await maybeOpenRemediationPr(fix, interaction.query);
+
+    const confidence = /missing tool|stale graph|prompt/i.test(fix) ? 0.82 : 0.63;
+    await pool.query(`UPDATE cortex_agent_interactions SET feedback = $1 WHERE id = $2`, [
+      `remediation: ${fix}`,
+      interaction.id,
+    ]);
+    await pool.query(
+      `INSERT INTO improvement_suggestions (id, category, suggestion, confidence, status)
+       VALUES ($1, $2, $3, $4, 'pending')
+       ON CONFLICT (id) DO NOTHING`,
+      [interaction.id, 'qa_failure', fix, confidence],
+    );
+  }
+}
+
 async function main(): Promise<void> {
-  const consumer = await createConsumer('cortex-monitoring-agent');
-  await consumer.subscribe({ topic: TOPICS.AGENT_INTERACTIONS, fromBeginning: false });
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) throw new Error('DATABASE_URL is required for monitoring-agent');
+  const pool = new Pool({ connectionString: dbUrl });
 
-  log.info('Monitoring agent.interactions');
-
-  await consumer.run({
-    eachMessage: async ({ message }) => {
-      if (!message.value) return;
-      const interaction = JSON.parse(message.value.toString()) as Interaction;
-      if (interaction.success !== false) return;
-
-      const fix = await evaluateFailure(interaction);
-      await maybeOpenRemediationPr(fix, interaction.query);
-
-      const dbUrl = process.env.DATABASE_URL;
-      if (dbUrl) {
-        const pool = new Pool({ connectionString: dbUrl });
-        await pool.query(`UPDATE cortex_agent_interactions SET feedback = $1 WHERE id = $2`, [
-          `remediation: ${fix}`,
-          interaction.id,
-        ]);
-        await pool.end();
-      }
-    },
-  });
+  log.info('Monitoring agent active (scheduled DB sweep every 24h)');
+  await runEvaluationSweep(pool);
+  setInterval(
+    () =>
+      void runEvaluationSweep(pool).catch((err) => log.error({ err }, 'evaluation sweep failed')),
+    24 * 60 * 60 * 1000,
+  );
 }
 
 main().catch((err) => {

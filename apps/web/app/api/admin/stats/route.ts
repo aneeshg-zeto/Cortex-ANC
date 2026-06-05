@@ -1,13 +1,27 @@
-import { CONNECTOR_COUNT } from '@/lib/catalog';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { NextResponse } from 'next/server';
 import pg from 'pg';
 
 const { Pool } = pg;
 
 export async function GET() {
+  let connectors = 0;
   let pendingApprovals = 0;
   let documentCount = 0;
   let nodeCount = 0;
+
+  try {
+    const generatedPath = path.resolve(
+      process.cwd(),
+      'packages/integration-core/src/connectors/registry.generated.ts',
+    );
+    const content = readFileSync(generatedPath, 'utf8');
+    connectors = [...content.matchAll(/\{ id: '([^']+)', name: '([^']+)', status: '([^']+)'/g)]
+      .length;
+  } catch {
+    connectors = 0;
+  }
 
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl) {
@@ -28,7 +42,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    connectors: CONNECTOR_COUNT,
+    connectors,
     pendingApprovals,
     documentCount,
     nodeCount,

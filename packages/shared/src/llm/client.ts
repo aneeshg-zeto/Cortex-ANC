@@ -36,7 +36,7 @@ function buildMessages(prompt: string, options: LlmOptions): LlmMessage[] {
 }
 
 function litellmBase(): string | null {
-  const url = process.env.LITELLM_URL?.replace(/\/$/, '');
+  const url = (process.env.LITELLM_URL ?? 'http://localhost:4000').replace(/\/$/, '');
   return url || null;
 }
 
@@ -146,6 +146,18 @@ export async function llmComplete(prompt: string, options: LlmOptions = {}): Pro
 
 /** Low-cost local model for entity extraction and monitoring. */
 export async function llmCompleteLocal(prompt: string, temperature = 0): Promise<string> {
+  if (litellmBase()) {
+    try {
+      return await callLiteLLM(
+        [{ role: 'user', content: prompt }],
+        'cortex-ollama',
+        temperature,
+        256,
+      );
+    } catch {
+      // fall through to direct Ollama
+    }
+  }
   return llmChat([{ role: 'user', content: prompt }], {
     provider: 'ollama',
     temperature,

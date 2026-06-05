@@ -2,147 +2,162 @@
 
 **Cortex** is the Single Brain for Your Entire Business — an AI-native company platform that connects every tool a business runs on into one intelligent system.
 
-Phase 0 + Phase 1 groundwork: integration connectors (from Activepieces), vector RAG brain, Executive Desk, and Clients Desk.
+Phase 2.5: live infra hub-spoke, 700+ connectors, hybrid RAG brain, Temporal approvals, admin UI, LiteLLM gateway.
 
 ## Stack
 
-| Layer        | Technology                                                                           |
-| ------------ | ------------------------------------------------------------------------------------ |
-| Frontend     | Next.js 16.2, React 19, Tailwind v4, shadcn/ui v4 + `@cortex/ui` (from Activepieces) |
-| Monorepo     | Bun workspaces + Turborepo                                                           |
-| Brain        | `@cortex/graph-core` — pgvector + in-memory fallback                                 |
-| Agent        | `@cortex/agent-core` — Cortex Brain (`runBrain`) + hybrid RAG                        |
-| Integrations | `@cortex/integration-core` — Slack, Gmail, GitHub, Linear, Notion                    |
+| Layer           | Technology                                                         |
+| --------------- | ------------------------------------------------------------------ |
+| Frontend        | Next.js 16.2, React 19, Tailwind v4, Galvanite theme, `@cortex/ui` |
+| Monorepo        | Bun workspaces + Turborepo                                         |
+| Auth            | Clerk (optional), `@cortex/auth` + Permit.io stub                  |
+| Brain           | `@cortex/agent-core` — `runBrain`, hybrid RAG, HITL write actions  |
+| Graph + vectors | `@cortex/graph-core` — pgvector + Postgres knowledge graph         |
+| LLM gateway     | LiteLLM → Groq (70B) / Ollama (8B)                                 |
+| Integrations    | `@cortex/integration-core` — 706 adapted + 5 core connectors       |
+| Events          | Kafka (`raw.events` → `entity.extracted`)                          |
+| Workflows       | Temporal (`HandleClientReply` approval loop)                       |
+| OAuth hub       | Nango server                                                       |
+| Observability   | Pino, Loki, optional Sentry                                        |
 
 ## Prerequisites
 
 - [Bun](https://bun.sh) 1.3+
-- [Ollama](https://ollama.com) (for local LLM + embeddings) **or** Groq API key
-- [Docker](https://docker.com) (optional, for PostgreSQL + pgvector)
-
-### Pull embedding model (first run)
+- [Docker](https://docker.com) — full stack via `docker compose`
+- [Ollama](https://ollama.com) (optional, for local embeddings/entity extraction) **or** Groq API key
 
 ```bash
 ollama pull nomic-embed-text
-ollama pull llama3:8b   # if using local chat model
+ollama pull llama3:8b
 ```
 
 ## Quick Start
 
 ```bash
 cd cortex-platform
-cp .env.example .env   # lives at monorepo root; loaded into Next.js via apps/web/next.config.ts
-# Set GROQ_API_KEY and LLM_PROVIDER=groq (or use Ollama with LLM_PROVIDER=ollama)
+cp .env.example .env
+# Set GROQ_API_KEY, DATABASE_URL, optional CLERK keys
 
 bun install
-bun run build
-
-# Optional: PostgreSQL + pgvector
-bun run db:up
+bun run infra:up        # Kafka, Redis, ES, Neo4j, Temporal, LiteLLM, Nango, Postgres
 bun run db:init
-bun run seed
-bun run seed:brain    # vectors + Acme knowledge graph nodes
+bun run build
+bun run seed:brain      # vectors + Acme knowledge graph
 
-bun run test:brain    # smoke test LLM pipeline (no web server)
-bun dev
+bun run test:brain      # smoke test (no web server)
+bun run dev             # Next.js desks on :3000
 ```
 
-### Cortex Brain pipeline
-
-```
-Question → reasoning agent → hybrid retrieval (vectors + graph) → response agent (cited answer)
-```
-
-Health check: `GET http://localhost:3000/api/brain/health`
-
-### Desks
-
-| URL                                  | Purpose                                          |
-| ------------------------------------ | ------------------------------------------------ |
-| http://localhost:3000/executive-desk | Slack-style exec chat with source citations      |
-| http://localhost:3000/clients-desk   | Email-style client reply drafting + HITL approve |
-| http://localhost:3000/chat           | Simple brain chat                                |
-
-### Demo queries
-
-**Executive Desk:** `What is the status of the Acme project?`
-
-Expected: answer citing Linear ticket ACME-142 (blocked on API keys), Slack standup, GitHub PR #88.
-
-**Clients Desk:** Select Sarah Chen's email → **Reply with AI** → draft mentions launch timeline/blockers → **Approve & Send** logs to console.
-
-## Environment Variables
+### Full stack (services + desks)
 
 ```bash
-LLM_PROVIDER=groq          # groq | ollama (auto-detected from keys)
-GROQ_API_KEY=your_key_here
-GROQ_MODEL=llama-3.3-70b-versatile
-LOCAL_LLM_ENDPOINT=http://localhost:11434
-LOCAL_LLM_MODEL=llama3:8b
-EMBEDDING_MODEL=nomic-embed-text
-DATABASE_URL=postgresql://cortex:cortex@localhost:5434/cortex
+bun run services:dev    # integration-service, event-consumer, temporal-worker
+bun run test:event      # publish test event to Kafka
+bun run temporal:dev    # Temporal worker only
 ```
 
-**LLM priority:** `LLM_PROVIDER` → `GROQ_API_KEY` present → Ollama fallback.
+## Cortex Brain pipeline
 
-Without `DATABASE_URL`, the vector store uses in-memory mode (auto-seeded on first query).
+```
+Question → reasoning agent → hybrid retrieval (vectors + graph depth-2) → response agent (cited answer)
+```
 
-## Monorepo Structure
+Health: `GET http://localhost:3000/api/brain/health`
+
+## Desks & Admin
+
+| URL                   | Purpose                                               |
+| --------------------- | ----------------------------------------------------- |
+| `/executive-desk`     | Exec chat with graph + vector citations               |
+| `/clients-desk`       | AI-drafted client replies → Approve & Send (Temporal) |
+| `/approvals`          | Pending write-action approvals                        |
+| `/admin`              | Dashboard stats                                       |
+| `/admin/connections`  | 700+ connector catalogue + Nango status               |
+| `/admin/logs`         | Event / activity feed                                 |
+| `/admin/improvements` | AI monitoring suggestions                             |
+
+## Demo queries
+
+**Executive Desk:** `Who is working on the Acme launch and what's blocking it?`
+
+Expected: citations from graph nodes (PROJ-101, Jane, API keys) + vector docs.
+
+**Clients Desk:** Select email → **Reply with AI** → **Approve & Send** → approval workflow → Gmail send (or simulated log).
+
+## Environment
+
+See `.env.example`. Key vars:
+
+```bash
+LLM_PROVIDER=groq
+GROQ_API_KEY=...
+LITELLM_URL=http://localhost:4000
+DATABASE_URL=postgresql://cortex:cortex@localhost:5434/cortex
+KAFKA_BROKERS=localhost:9092
+TEMPORAL_ADDRESS=localhost:7233
+NANGO_SERVER_URL=http://localhost:3003
+REDIS_URL=redis://localhost:6380
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=   # optional — protects desk routes when set
+```
+
+## Monorepo structure
 
 ```text
 cortex-platform/
-├── apps/web/                    # Next.js — desks + API routes
+├── apps/web/                 # Next.js desks + API routes
 ├── packages/
-│   ├── ui/                      # Chat UI adapted from Activepieces prompt-kit
-│   ├── shared/                  # HTTP, LLM, embeddings
-│   ├── agent-core/              # askQuestion, draftClientReply, RAG
-│   ├── graph-core/              # pgvector + memory vector store
-│   └── integration-core/        # Connectors (Activepieces adapted)
+│   ├── agent-core/           # Brain, hybrid RAG, approvals
+│   ├── graph-core/           # pgvector + Postgres graph
+│   ├── integration-core/     # Connectors (adapted from Activepieces)
+│   ├── shared/               # LLM, Kafka, Temporal client
+│   ├── auth/                 # Clerk + Permit stub
+│   └── ui/                   # Galvanite chat components
 ├── services/
-│   ├── event-consumer/          # Mock hub documents
-│   └── ingestion-service/       # Slack spoke (live ingest if token set)
-├── scripts/seed-data.ts
-└── docker-compose.yml           # PostgreSQL + pgvector
+│   ├── event-consumer/       # Kafka → graph + vectors
+│   ├── integration-service/  # Nango REST proxy
+│   ├── temporal-worker/      # HandleClientReply workflow
+│   ├── monitoring-agent/     # Daily QA eval → improvements
+│   └── ingestion-service/    # Slack spoke
+├── scripts/
+│   ├── adapt-connectors.ts   # Activepieces → integration-core
+│   ├── seed-graph.ts         # Brain seed
+│   └── publish-test-event.ts
+├── infra/litellm/            # LiteLLM routing config
+└── docker-compose.yml        # Full local stack
 ```
 
-## Hub-Spoke Model
+## Connectors
 
-- **Hub:** vector store (`graph-core`) — documents indexed with embeddings
-- **Spokes:** connectors (Slack, Gmail, …) push data via ingestion scripts
-- **Mock spoke:** `services/ingestion-service/src/spokes/slack-spoke.ts`
-- **Seed spoke:** `bun run seed` loads 12 mock docs (Linear, Slack, GitHub, Gmail, Notion)
+```bash
+# Requires ../activepieces-main sibling repo
+bun run adapt:connectors           # core 5
+bun run adapt:connectors --all       # 700+ pieces → registry.generated.ts
+```
 
-Kafka/Temporal are **not** implemented yet — ingestion is manual/seed-based.
+Core connectors (hand-adapted): Slack, Gmail, GitHub, Linear, Notion.
 
-## API Routes
+## API routes
 
-| Route                     | Body                         | Response                |
-| ------------------------- | ---------------------------- | ----------------------- |
-| `POST /api/executive-ask` | `{ question }`               | `{ answer, sources[] }` |
-| `POST /api/client-reply`  | `{ emailContent, subject? }` | `{ draft, sources[] }`  |
-| `POST /api/chat`          | `{ prompt }`                 | `{ answer, sources[] }` |
-
-## Activepieces UI Reuse
-
-Copied and adapted from `activepieces-main/packages/web/src/components/`:
-
-| Cortex component | Activepieces source                        |
-| ---------------- | ------------------------------------------ |
-| `Spinner`        | `custom/spinner.tsx`                       |
-| `Markdown`       | `prompt-kit/markdown.tsx` (simplified)     |
-| `ChatMessage*`   | `prompt-kit/message.tsx`                   |
-| `ChatWindow`     | `prompt-kit/chat-container.tsx`            |
-| `ChatInput`      | `prompt-kit/prompt-input.tsx` (simplified) |
-| `Panel*`         | `ui/resizable-panel.tsx`                   |
-
-Not reused: `CopyButton`, `Source` link chips, full `ApMarkdown` variants — minimal replacements in `@cortex/ui`.
+| Route                        | Purpose                                |
+| ---------------------------- | -------------------------------------- |
+| `POST /api/executive-ask`    | Brain Q&A with citations               |
+| `POST /api/client-reply`     | Draft reply + start Temporal workflow  |
+| `POST /api/approvals`        | Approve/deny write actions             |
+| `GET /api/connectors/status` | Nango + connector health               |
+| `GET /api/admin/*`           | Stats, logs, improvements, connections |
 
 ## Scripts
 
 ```bash
-bun dev              # Start web + watch packages
-bun run build        # Build all packages
-bun run seed         # Seed vector store
-bun run db:up        # Start PostgreSQL
-bun run smoke:slack  # Slack connector smoke test
+bun dev                 # Web + watch packages
+bun run build           # Build all
+bun run typecheck       # TS check (adapted connectors excluded)
+bun run infra:up        # Docker full stack
+bun run seed:brain      # Vectors + graph
+bun run test:brain      # Brain smoke test
+bun run test:event      # Kafka test publish
+bun run adapt:connectors
+bun run services:dev    # Background services
 ```
+
+See `completion.md` for detailed status.

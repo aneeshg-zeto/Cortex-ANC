@@ -65,6 +65,27 @@ const server = Bun.serve({
       });
     }
 
+    if (url.pathname === '/api/connectors/status' && req.method === 'GET') {
+      const core = ['slack', 'github', 'gmail', 'linear', 'notion'];
+      const nangoUrl = process.env.NANGO_SERVER_URL ?? 'http://localhost:3003';
+      let nangoReachable = false;
+      try {
+        const probe = await fetch(`${nangoUrl}/health`, { method: 'GET' });
+        nangoReachable = probe.ok;
+      } catch {
+        nangoReachable = false;
+      }
+      const status = await Promise.all(
+        core.map(async (provider) => {
+          if (!nango) return { provider, healthy: false, reason: 'NANGO_SECRET_KEY missing' };
+          if (!nangoReachable)
+            return { provider, healthy: false, reason: 'Nango server unreachable' };
+          return { provider, healthy: true };
+        }),
+      );
+      return Response.json({ nangoEnabled: !!nango, nangoReachable, status });
+    }
+
     return new Response('Not found', { status: 404 });
   },
 });

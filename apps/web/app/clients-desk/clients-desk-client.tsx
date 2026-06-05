@@ -58,6 +58,7 @@ export function ClientsDeskPage() {
   const [sources, setSources] = useState<SourceCitationProps[]>([]);
   const [loading, setLoading] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
 
   const selected = MOCK_INBOX.find((e) => e.id === selectedId) ?? MOCK_INBOX[0];
 
@@ -74,6 +75,7 @@ export function ClientsDeskPage() {
       });
       const data = (await response.json()) as {
         draft?: string;
+        pendingApprovalId?: string;
         sources?: SourceCitationProps[];
         error?: string;
       };
@@ -81,6 +83,7 @@ export function ClientsDeskPage() {
       if (!response.ok) throw new Error(data.error ?? 'Failed to draft reply');
       setDraft(data.draft ?? '');
       setSources(data.sources ?? []);
+      setPendingApprovalId(data.pendingApprovalId ?? null);
     } catch (error) {
       setDraft(error instanceof Error ? error.message : 'Failed to generate draft');
     } finally {
@@ -88,14 +91,16 @@ export function ClientsDeskPage() {
     }
   }
 
-  function handleApprove() {
-    console.log('[Clients Desk] Approved & Send:', {
-      emailId: selected.id,
-      to: selected.from,
-      subject: `Re: ${selected.subject}`,
-      draft,
+  async function handleApprove() {
+    if (!pendingApprovalId) return;
+    const response = await fetch('/api/approvals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: pendingApprovalId, decision: 'approved' }),
     });
-    setApproved(true);
+    if (response.ok) {
+      setApproved(true);
+    }
   }
 
   return (
@@ -140,7 +145,9 @@ export function ClientsDeskPage() {
                     <p className="truncate text-sm font-medium text-white">{email.from}</p>
                     <p className="truncate text-sm text-[#cbd5e1]">{email.subject}</p>
                     <p className="mt-1 truncate text-xs text-[#94a3b8]">{email.preview}</p>
-                    <p className="mt-1 font-mono text-[10px] text-cyan-400/70">{email.receivedAt}</p>
+                    <p className="mt-1 font-mono text-[10px] text-cyan-400/70">
+                      {email.receivedAt}
+                    </p>
                   </button>
                 </li>
               ))}
@@ -203,7 +210,7 @@ export function ClientsDeskPage() {
                   </button>
                   {approved && (
                     <span className="text-sm text-emerald-400">
-                      Sent (simulated — check console)
+                      Sent (approval workflow completed)
                     </span>
                   )}
                 </div>

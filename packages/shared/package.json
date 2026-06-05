@@ -13,6 +13,14 @@
     "./kafka": {
       "types": "./dist/kafka/index.d.ts",
       "import": "./dist/kafka/index.js"
+    },
+    "./temporal/client": {
+      "types": "./dist/temporal/client.d.ts",
+      "import": "./dist/temporal/client.js"
+    },
+    "./temporal/types": {
+      "types": "./dist/temporal/types.d.ts",
+      "import": "./dist/temporal/types.js"
     }
   },
   "scripts": {
@@ -22,6 +30,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@temporalio/client": "^1.11.7",
     "kafkajs": "^2.2.4",
     "pino": "^9.6.0"
   },

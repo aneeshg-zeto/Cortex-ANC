@@ -1,47 +1,63 @@
 # Cortex Platform — Completion Status
 
-**Last updated:** Brain/LLM pass — build green
+**Last updated:** Phase 2.5 ready (~80%)
 
-## Done (~40% overall)
+## Done
 
-| Area                                                                            | Status |
-| ------------------------------------------------------------------------------- | ------ |
-| Monorepo (Bun + Turborepo)                                                      | ✅     |
-| 5 hand-adapted connectors (Slack, GitHub, Gmail, Linear, Notion)                | ✅     |
-| Connector adapter script + catalogue registry (50+ via manifest)                | ✅     |
-| Vector RAG (pgvector + memory fallback)                                         | ✅     |
-| Knowledge graph (Postgres nodes/edges + optional Neo4j)                         | ✅     |
-| Hybrid retrieval (vector + graph traversal)                                     | ✅     |
-| Executive Desk + Clients Desk + Galvanite UI                                    | ✅     |
-| Clerk auth + Permit.io stub (`@cortex/auth`)                                    | ✅     |
-| Full `docker-compose` (Kafka, Redis, ES, Neo4j, Temporal, LiteLLM, Loki, Nango) | ✅     |
-| Kafka event pipeline (`raw.events` → ingestion → `entity.extracted`)            | ✅     |
-| Nango integration service                                                       | ✅     |
-| Cortex Brain (`runBrain`: reasoning → hybrid RAG → response)                    | ✅     |
-| LLM client (Groq + LiteLLM + Ollama, retries, agent prompts)                    | ✅     |
-| `bun run test:brain` smoke script                                               | ✅     |
-| LangGraph-style agent orchestration                                             | ✅     |
-| Approvals + write actions (HITL)                                                | ✅     |
-| Monitoring agent + remediation stubs                                            | ✅     |
-| Admin / connectors / approvals / graph explorer pages                           | ✅     |
-| CI workflow + Terraform skeleton                                                | ✅     |
-| Pino logging + Sentry (optional DSN)                                            | ✅     |
+| Area                                                                                          | Status |
+| --------------------------------------------------------------------------------------------- | ------ |
+| Monorepo (Bun + Turborepo, 12 packages)                                                       | ✅     |
+| Full infra (`docker compose up -d`) — Kafka, Redis, ES, Neo4j, Temporal, LiteLLM, Loki, Nango | ✅     |
+| 706 adapted connectors + 5 core (Slack, Gmail, GitHub, Linear, Notion)                        | ✅     |
+| Nango integration service + `/api/connectors/status`                                          | ✅     |
+| Kafka event pipeline (`raw.events` → entity extract → graph + vectors → `entity.extracted`)   | ✅     |
+| Knowledge graph (Postgres nodes/edges, depth-2 traversal)                                     | ✅     |
+| Hybrid retrieval (vector + graph, deduped citations)                                          | ✅     |
+| Cortex Brain (`runBrain`: reasoning → hybrid RAG → Groq via LiteLLM)                          | ✅     |
+| LiteLLM gateway (chat + embeddings routing)                                                   | ✅     |
+| Temporal `HandleClientReply` workflow + worker                                                | ✅     |
+| Approvals + write actions (HITL, Gmail send or simulated)                                     | ✅     |
+| Monitoring agent stub → `improvement_suggestions`                                             | ✅     |
+| Admin UI (`/admin/connections`, `/logs`, `/improvements`)                                     | ✅     |
+| Clerk auth (middleware + sign-in/up, optional via env)                                        | ✅     |
+| Executive / Clients / Chat desks (Galvanite theme)                                            | ✅     |
+| CI + Terraform skeleton                                                                       | ✅     |
 
-## Remaining for full production
+## Remaining for production
 
-- Run `bun run adapt:connectors` once (requires `activepieces-main` sibling path)
-- Wire real Nango OAuth apps in Nango dashboard
-- Temporal worker deployment for durable workflows at scale
-- Permit.io live API (currently static role map)
+- Real Nango OAuth apps in Nango dashboard
+- Permit.io live API (static role map today)
 - LangSmith / full eval suite
 - EKS Terraform apply (skeleton only)
+- Fix adapted connector TS errors (706 pieces excluded from typecheck)
 
 ## Run locally
 
 ```bash
 cp .env.example .env
-docker compose up -d
+bun run infra:up          # all docker services
 bun run db:init
 bun install && bun run build
-bun run dev
+bun run seed:brain        # vectors + Acme graph + improvement seed
+bun run test:brain        # smoke test brain
+bun run test:event        # publish Kafka test event (needs kafka + event-consumer)
+bun run services:dev      # integration-service + event-consumer + temporal-worker
+bun run dev               # Next.js desks
 ```
+
+## Ports
+
+| Service       | Port        |
+| ------------- | ----------- |
+| Web           | 3000        |
+| Postgres      | 5434        |
+| Kafka         | 9092        |
+| Kafka UI      | 9080        |
+| LiteLLM       | 4000        |
+| Nango         | 3003        |
+| Temporal      | 7233        |
+| Temporal UI   | 8088        |
+| Redis         | 6380        |
+| Elasticsearch | 9200        |
+| Neo4j         | 7474 / 7687 |
+| Loki          | 3100        |

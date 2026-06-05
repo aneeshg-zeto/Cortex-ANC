@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { draftClientReply } from '@cortex/agent-core';
+import { startHandleClientReplyWorkflow } from '@cortex/shared/temporal/client';
+import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +15,14 @@ export async function POST(request: Request) {
       : body.emailContent.trim();
 
     const result = await draftClientReply(emailWithSubject);
+
+    if (result.pendingApprovalId) {
+      await startHandleClientReplyWorkflow({
+        approvalId: result.pendingApprovalId,
+        emailContent: emailWithSubject,
+        draft: result.draft,
+      });
+    }
 
     return NextResponse.json({
       draft: result.draft,

@@ -20,11 +20,13 @@
     "seed:graph": "bun run scripts/seed-graph.ts",
     "seed:brain": "bun run scripts/seed-graph.ts",
     "test:brain": "bun run scripts/test-brain.ts",
+    "test:event": "bun run scripts/publish-test-event.ts",
     "db:up": "docker compose up -d postgres",
     "infra:up": "docker compose up -d",
     "db:init": "bash scripts/init-db.sh",
     "adapt:connectors": "bun run scripts/adapt-connectors.ts",
-    "services:dev": "bun run --filter '@cortex/integration-service' dev & bun run --filter '@cortex/event-consumer' dev",
+    "services:dev": "bun run --filter '@cortex/integration-service' dev & bun run --filter '@cortex/event-consumer' dev & bun run --filter '@cortex/temporal-worker' dev",
+    "temporal:dev": "bun run --filter '@cortex/temporal-worker' dev",
     "prepare": "husky"
   },
   "devDependencies": {

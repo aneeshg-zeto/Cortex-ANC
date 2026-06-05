@@ -1,4 +1,5 @@
 import { executeApprovedAction } from '@cortex/agent-core';
+import { signalClientReplyApproval } from '@cortex/shared/temporal/client';
 import { NextResponse } from 'next/server';
 import pg from 'pg';
 
@@ -34,14 +35,20 @@ export async function POST(request: Request) {
   await pool.end();
 
   if (body.decision === 'approved') {
+    const signaled = await signalClientReplyApproval(body.id, { approved: true });
+    if (signaled) {
+      return NextResponse.json({ ok: true, via: 'temporal' });
+    }
     try {
       const result = await executeApprovedAction(body.id);
-      return NextResponse.json({ ok: true, result });
+      return NextResponse.json({ ok: true, result, via: 'direct' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Execution failed';
       return NextResponse.json({ ok: false, error: message }, { status: 500 });
     }
   }
+
+  await signalClientReplyApproval(body.id, { approved: false });
 
   return NextResponse.json({ ok: true });
 }
