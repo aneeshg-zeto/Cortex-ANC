@@ -72,7 +72,9 @@ export function ChatInput({
         rows={1}
         className={cn(
           'min-h-[44px] max-h-40 flex-1 resize-none border-none bg-transparent px-2 py-2 text-sm outline-none',
-          variant === 'light' ? 'text-[#111111] placeholder:text-gray-400' : 'input-dark',
+          variant === 'light'
+            ? 'text-[#111111] placeholder:text-gray-400'
+            : 'text-zinc-100 placeholder:text-zinc-500',
         )}
       />
       <button
@@ -80,8 +82,10 @@ export function ChatInput({
         onClick={handleSubmit}
         disabled={disabled || isLoading || !currentValue.trim()}
         className={cn(
-          'inline-flex size-10 shrink-0 items-center justify-center rounded-xl disabled:opacity-50',
-          variant === 'light' ? 'bg-teal-600 text-white hover:bg-teal-700' : 'btn-gradient',
+          'inline-flex size-10 shrink-0 items-center justify-center disabled:opacity-50',
+          variant === 'light'
+            ? 'rounded-xl bg-teal-600 text-white hover:bg-teal-700'
+            : 'bg-[#14b8a6] text-black hover:bg-[#0d9488]',
         )}
       >
         <Send className="size-4" />
