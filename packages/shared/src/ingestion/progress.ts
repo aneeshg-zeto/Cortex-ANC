@@ -89,10 +89,17 @@ export async function getIngestionProgress(tenantId: string): Promise<IngestionP
      FROM ingestion_progress WHERE tenant_id = $1 ORDER BY provider`,
     [tenantId],
   );
-  return r.rows.map((row) => ({
-    provider: row.provider,
-    processed: row.processed_documents,
-    total: row.total_documents,
-    status: row.status,
-  }));
+  return r.rows.map(
+    (row: {
+      provider: string;
+      total_documents: number;
+      processed_documents: number;
+      status: string;
+    }) => ({
+      provider: row.provider,
+      processed: row.processed_documents,
+      total: row.total_documents,
+      status: row.status,
+    }),
+  );
 }
