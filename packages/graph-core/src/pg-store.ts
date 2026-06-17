@@ -40,6 +40,15 @@ export class PgVectorStore {
 
   async indexDocument(id: string, text: string, metadata: DocumentMetadata): Promise<void> {
     const embedding = await embedText(text);
+    await this.indexDocumentWithEmbedding(id, text, metadata, embedding);
+  }
+
+  async indexDocumentWithEmbedding(
+    id: string,
+    text: string,
+    metadata: DocumentMetadata,
+    embedding: number[],
+  ): Promise<void> {
     const vectorLiteral = `[${embedding.join(',')}]`;
     const tenantId = typeof metadata.tenant_id === 'string' ? metadata.tenant_id : null;
 

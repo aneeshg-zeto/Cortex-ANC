@@ -16,6 +16,26 @@
     "./notion": {
       "types": "./src/connectors/notion/client.ts",
       "import": "./src/connectors/notion/client.ts"
+    },
+    "./jira": {
+      "types": "./src/connectors/jira/client.ts",
+      "import": "./src/connectors/jira/client.ts"
+    },
+    "./confluence": {
+      "types": "./src/connectors/confluence/client.ts",
+      "import": "./src/connectors/confluence/client.ts"
+    },
+    "./miro": {
+      "types": "./src/connectors/miro/client.ts",
+      "import": "./src/connectors/miro/client.ts"
+    },
+    "./loom": {
+      "types": "./src/connectors/loom/client.ts",
+      "import": "./src/connectors/loom/client.ts"
+    },
+    "./linear-read": {
+      "types": "./src/connectors/linear/client.ts",
+      "import": "./src/connectors/linear/client.ts"
     }
   },
   "scripts": {

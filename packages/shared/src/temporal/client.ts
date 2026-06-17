@@ -52,8 +52,11 @@ export async function startIngestInitialDataWorkflow(
   input: IngestInitialDataInput,
 ): Promise<string | null> {
   if (!process.env.TEMPORAL_ADDRESS) return null;
-  const provider = input.providers[0] ?? 'google-workspace';
-  const workflowId = workflowIdForIngest(input.tenantId, provider);
+  const allProviders = input.providers.includes('*') || input.providers.length === 0;
+  const provider = allProviders ? 'all' : (input.providers[0] ?? 'google-workspace');
+  const workflowId = allProviders
+    ? `ingest-all-${input.tenantId}-${Date.now()}`
+    : workflowIdForIngest(input.tenantId, provider);
   try {
     const client = await getClient();
     await client.workflow.start('ingestInitialData', {
@@ -76,6 +79,11 @@ export async function startIngestInitialDataWorkflow(
     console.warn('[temporal] ingest start failed:', message);
     return null;
   }
+}
+
+/** Start parallel incremental resync for all connected providers. */
+export async function startResyncAllWorkflow(tenantId: string): Promise<string | null> {
+  return startIngestInitialDataWorkflow({ tenantId, providers: ['*'] });
 }
 
 const INGEST_PROVIDERS = ['google-workspace', 'github', 'notion'];

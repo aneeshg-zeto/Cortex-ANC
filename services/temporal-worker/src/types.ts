@@ -12,3 +12,14 @@ export type IngestInitialDataInput = {
   tenantId: string;
   providers: string[];
 };
+
+export type IngestProviderInput = {
+  tenantId: string;
+  provider: string;
+  since?: string;
+};
+
+export type IngestActivityInput = {
+  tenantId: string;
+  since?: string;
+};

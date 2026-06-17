@@ -5,10 +5,7 @@ import * as ResizablePrimitive from 'react-resizable-panels';
 
 import { cn } from '../lib/utils';
 
-export function PanelGroup({
-  className,
-  ...props
-}: ResizablePrimitive.GroupProps) {
+export function PanelGroup({ className, ...props }: ResizablePrimitive.GroupProps) {
   return (
     <ResizablePrimitive.Group
       className={cn('flex h-full w-full aria-[orientation=vertical]:flex-col', className)}
@@ -75,8 +72,6 @@ export function GlassCard({
   className?: string;
 }) {
   return (
-    <div className={cn('glass glass-hover p-6 transition-all duration-200', className)}>
-      {children}
-    </div>
+    <div className={cn('glass-card glass-card-interactive p-6 md:p-8', className)}>{children}</div>
   );
 }

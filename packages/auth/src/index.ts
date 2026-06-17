@@ -1,4 +1,4 @@
-export type CortexRole = 'admin' | 'ceo' | 'client';
+export type CortexRole = 'admin' | 'ceo' | 'client' | 'hr' | 'employee';
 
 export type AuthUser = {
   id: string;
@@ -6,6 +6,7 @@ export type AuthUser = {
   name: string;
   role: CortexRole;
   tenantId: string;
+  employeeId: string | null;
   projectIds: string[];
   isPlatformAdmin: boolean;
 };
@@ -15,8 +16,16 @@ export function can(user: AuthUser | null, _action: string): boolean {
   return user !== null;
 }
 
-export function canAccessAdmin(_role: CortexRole): boolean {
-  return true;
+export function canManageWorkspace(role: CortexRole): boolean {
+  return role === 'admin' || role === 'ceo';
+}
+
+export function canAccessHr(role: CortexRole): boolean {
+  return role === 'hr' || role === 'admin' || role === 'ceo';
+}
+
+export function canAccessEmployeePortal(role: CortexRole): boolean {
+  return role === 'employee';
 }
 
 export function sessionToAuthUser(session: {
@@ -26,6 +35,7 @@ export function sessionToAuthUser(session: {
     name?: string | null;
     tenantId?: string | null;
     role?: string | null;
+    employeeId?: string | null;
   };
 }): AuthUser | null {
   const u = session.user;
@@ -37,6 +47,7 @@ export function sessionToAuthUser(session: {
     name: u.name ?? u.email,
     role,
     tenantId: u.tenantId,
+    employeeId: u.employeeId ?? null,
     projectIds: [],
     isPlatformAdmin: role === 'admin',
   };

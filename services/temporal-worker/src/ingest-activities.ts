@@ -1,4 +1,3 @@
-import { indexDocument } from '@cortex/graph-core';
 import {
   listDatabases,
   pageTitleFromProperties,
@@ -7,17 +6,32 @@ import {
   getPageContent,
 } from '@cortex/integration-core/notion';
 import {
+  getLastSyncedAt,
   getValidAccessToken,
-  incrementIngestionProgress,
+  getGitHubIngestRepos,
+  listConnectedProviders,
+  listTenantProjects,
   llmClient,
+  projectIdForRepo,
+  updateLastSyncedAt,
   upsertIngestionProgress,
+  workerTenantContext,
+  type AccountProvider,
 } from '@cortex/shared';
-import { indexDocumentEs } from '@cortex/shared/graph/elasticsearch-client';
 import { upsertNeo4jNode } from '@cortex/shared/graph/neo4j-client';
 import pg from 'pg';
 
+import {
+  indexChunksBatch,
+  indexIngestDocs,
+  mapInParallel,
+  type IngestDocInput,
+} from './ingest-index';
+import type { IngestActivityInput } from './types';
+
 const GOOGLE_PROVIDERS = ['google-workspace', 'gmail', 'google'];
 const GITHUB_PROVIDERS = ['github'];
+const FETCH_CONCURRENCY = 10;
 
 function sanitizeText(text: string): string {
   return text.replace(/\0/g, '').trim();
@@ -32,7 +46,6 @@ function chunkText(text: string, maxChars = 2000): string[] {
   return chunks.length ? chunks : clean ? [clean] : [];
 }
 
-/** ~512 tokens with 10% overlap (≈4 chars per token). */
 function chunkTextWithOverlap(text: string, maxChars = 2048, overlapRatio = 0.1): string[] {
   const clean = sanitizeText(text);
   if (!clean) return [];
@@ -46,6 +59,25 @@ function chunkTextWithOverlap(text: string, maxChars = 2048, overlapRatio = 0.1)
   return chunks.length ? chunks : clean ? [clean] : [];
 }
 
+async function resolveSince(
+  tenantId: string,
+  provider: AccountProvider,
+  since?: string,
+): Promise<string | undefined> {
+  if (since) return since;
+  const last = await getLastSyncedAt(tenantId, provider);
+  return last ? last.toISOString() : undefined;
+}
+
+function gmailSinceQuery(since?: string): string {
+  if (!since) return '';
+  const d = new Date(since);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `after:${y}/${m}/${day}`;
+}
+
 async function updateOnboarding(tenantId: string, patch: Record<string, unknown>): Promise<void> {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
   await pool.query(
@@ -55,120 +87,108 @@ async function updateOnboarding(tenantId: string, patch: Record<string, unknown>
   await pool.end();
 }
 
-async function indexIngestDoc(input: {
-  tenantId: string;
-  docId: string;
-  text: string;
-  title: string;
-  source: string;
-  type: string;
-  url?: string;
-  extraMeta?: Record<string, unknown>;
-}): Promise<number> {
-  let count = 0;
-  for (const [i, chunk] of chunkText(input.text).entries()) {
-    const id = i === 0 ? input.docId : `${input.docId}:${i}`;
-    await indexDocument(id, chunk, {
-      title: input.title,
-      source: input.source,
-      type: input.type,
-      tenant_id: input.tenantId,
-      url: input.url,
-      ...input.extraMeta,
-    });
-    await indexDocumentEs(input.tenantId, {
-      id,
-      content: chunk,
-      title: input.title,
-      source: input.source,
-      sourceId: input.docId,
-      url: input.url,
-    });
-    count += 1;
-  }
-  await upsertNeo4jNode(input.tenantId, 'Document', {
-    id: input.docId,
-    title: input.title,
-    source: input.source,
-  });
-  return count;
+async function indexIngestDoc(input: IngestDocInput): Promise<number> {
+  return indexIngestDocs([input], chunkText);
 }
 
-export async function ingestGmailActivity(input: { tenantId: string }): Promise<number> {
+export async function resolveIngestProvidersActivity(tenantId: string): Promise<string[]> {
+  const connected = await listConnectedProviders(tenantId);
+  const providers: string[] = [];
+  for (const p of connected) {
+    if (p === 'google') providers.push('google-workspace');
+    else providers.push(p);
+  }
+  return providers;
+}
+
+export async function ingestGoogleWorkspaceActivity(input: IngestActivityInput): Promise<number> {
+  const since = await resolveSince(input.tenantId, 'google', input.since);
+
+  await upsertIngestionProgress(input.tenantId, 'google-workspace', {
+    status: 'running',
+    total_documents: 0,
+    processed_documents: 0,
+  });
+
+  const [gmail, drive, calendar, contacts, tasks] = await Promise.all([
+    ingestGmailActivity({ tenantId: input.tenantId, since }),
+    ingestGoogleDriveActivity({ tenantId: input.tenantId, since }),
+    ingestGoogleCalendarActivity({ tenantId: input.tenantId, since }),
+    ingestGoogleContactsActivity({ tenantId: input.tenantId, since }),
+    ingestGoogleTasksActivity({ tenantId: input.tenantId, since }),
+  ]);
+
+  const total = gmail + drive + calendar + contacts + tasks;
+  await upsertIngestionProgress(input.tenantId, 'google-workspace', {
+    status: 'completed',
+    total_documents: total,
+    processed_documents: total,
+  });
+  await updateLastSyncedAt(input.tenantId, 'google');
+  return total;
+}
+
+export async function ingestGmailActivity(input: IngestActivityInput): Promise<number> {
   const token = await getValidAccessToken('google', input.tenantId);
   if (!token) return 0;
 
-  await upsertIngestionProgress(input.tenantId, 'google', {
-    status: 'running',
-    total_documents: 500,
-    processed_documents: 0,
-  });
+  const since = await resolveSince(input.tenantId, 'google', input.since);
+  const q = gmailSinceQuery(since);
+  const listUrl = q
+    ? `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=500&q=${encodeURIComponent(q)}`
+    : 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=500';
 
-  const listRes = await fetch(
-    'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=500',
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  if (!listRes.ok) {
-    await upsertIngestionProgress(input.tenantId, 'google', { status: 'failed' });
-    return 0;
-  }
+  const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
+  if (!listRes.ok) return 0;
+
   const list = (await listRes.json()) as { messages?: Array<{ id: string }> };
-  let count = 0;
-  const total = list.messages?.length ?? 0;
-  await upsertIngestionProgress(input.tenantId, 'google', {
-    total_documents: total,
-    processed_documents: 0,
-    status: 'running',
-  });
+  const messages = list.messages ?? [];
+  const docs: IngestDocInput[] = [];
 
-  for (const msg of list.messages ?? []) {
+  await mapInParallel(messages, FETCH_CONCURRENCY, async (msg) => {
     const detail = await fetch(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    if (!detail.ok) continue;
+    if (!detail.ok) return;
     const data = (await detail.json()) as {
       snippet?: string;
       payload?: { headers?: Array<{ name: string; value: string }> };
     };
     const subject =
       data.payload?.headers?.find((h) => h.name.toLowerCase() === 'subject')?.value ?? 'Email';
-    const text = data.snippet ?? '';
-    const indexed = await indexIngestDoc({
+    docs.push({
       tenantId: input.tenantId,
       docId: `${input.tenantId}:gmail:${msg.id}`,
-      text,
+      text: data.snippet ?? '',
       title: subject,
       source: 'gmail',
       type: 'email',
       url: `https://mail.google.com/mail/u/0/#inbox/${msg.id}`,
     });
-    count += indexed;
-    await incrementIngestionProgress(input.tenantId, 'google', indexed);
-  }
-
-  await upsertIngestionProgress(input.tenantId, 'google', {
-    status: 'completed',
-    total_documents: total,
-    processed_documents: count,
   });
+
+  const count = await indexIngestDocs(docs, chunkText);
+
   await updateOnboarding(input.tenantId, { gmail: count });
   return count;
 }
 
-export async function ingestGoogleDriveActivity(input: { tenantId: string }): Promise<number> {
+export async function ingestGoogleDriveActivity(input: IngestActivityInput): Promise<number> {
   const token = await getValidAccessToken('google', input.tenantId);
   if (!token) return 0;
 
+  const since = await resolveSince(input.tenantId, 'google', input.since);
+  const driveQ = since ? `trashed=false and modifiedTime > '${since}'` : 'trashed=false';
+
   const listRes = await fetch(
-    'https://www.googleapis.com/drive/v3/files?pageSize=200&fields=files(id,name,mimeType)&q=trashed=false',
+    `https://www.googleapis.com/drive/v3/files?pageSize=200&fields=files(id,name,mimeType)&q=${encodeURIComponent(driveQ)}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (!listRes.ok) return 0;
   const list = (await listRes.json()) as {
     files?: Array<{ id: string; name: string; mimeType: string }>;
   };
-  let count = 0;
 
   const GOOGLE_EXPORT: Record<string, string> = {
     'application/vnd.google-apps.document': 'text/plain',
@@ -176,7 +196,7 @@ export async function ingestGoogleDriveActivity(input: { tenantId: string }): Pr
     'application/vnd.google-apps.presentation': 'text/plain',
   };
 
-  for (const file of list.files ?? []) {
+  const docResults = await mapInParallel(list.files ?? [], FETCH_CONCURRENCY, async (file) => {
     let text = '';
     const exportMime = GOOGLE_EXPORT[file.mimeType];
     if (exportMime) {
@@ -191,16 +211,16 @@ export async function ingestGoogleDriveActivity(input: { tenantId: string }): Pr
         file.mimeType === 'application/json' ||
         file.mimeType === 'application/javascript' ||
         file.mimeType === 'application/pdf';
-      if (!exportable) continue;
+      if (!exportable) return null;
       const contentRes = await fetch(
         `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      if (!contentRes.ok) continue;
+      if (!contentRes.ok) return null;
       text = (await contentRes.text()).slice(0, 50_000);
     }
-    if (!text.trim()) continue;
-    count += await indexIngestDoc({
+    if (!text.trim()) return null;
+    const doc: IngestDocInput = {
       tenantId: input.tenantId,
       docId: `${input.tenantId}:drive:${file.id}`,
       text,
@@ -208,19 +228,24 @@ export async function ingestGoogleDriveActivity(input: { tenantId: string }): Pr
       source: 'drive',
       type: 'file',
       url: `https://drive.google.com/file/d/${file.id}/view`,
-    });
-  }
+    };
+    return doc;
+  });
 
+  const docs = docResults.filter((d): d is IngestDocInput => d !== null);
+
+  const count = await indexIngestDocs(docs, chunkText);
   await updateOnboarding(input.tenantId, { drive: count });
   return count;
 }
 
-export async function ingestGoogleCalendarActivity(input: { tenantId: string }): Promise<number> {
+export async function ingestGoogleCalendarActivity(input: IngestActivityInput): Promise<number> {
   const token = await getValidAccessToken('google', input.tenantId);
   if (!token) return 0;
 
+  const since = await resolveSince(input.tenantId, 'google', input.since);
   const now = new Date();
-  const min = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const min = since ?? new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const max = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
   const listRes = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(min)}&timeMax=${encodeURIComponent(max)}&maxResults=250&singleEvents=true&orderBy=startTime`,
@@ -230,26 +255,23 @@ export async function ingestGoogleCalendarActivity(input: { tenantId: string }):
   const list = (await listRes.json()) as {
     items?: Array<{ id: string; summary?: string; description?: string; htmlLink?: string }>;
   };
-  let count = 0;
 
-  for (const event of list.items ?? []) {
-    const text = `${event.summary ?? 'Event'}\n${event.description ?? ''}`;
-    count += await indexIngestDoc({
-      tenantId: input.tenantId,
-      docId: `${input.tenantId}:calendar:${event.id}`,
-      text,
-      title: event.summary ?? 'Calendar event',
-      source: 'calendar',
-      type: 'event',
-      url: event.htmlLink,
-    });
-  }
+  const docs: IngestDocInput[] = (list.items ?? []).map((event) => ({
+    tenantId: input.tenantId,
+    docId: `${input.tenantId}:calendar:${event.id}`,
+    text: `${event.summary ?? 'Event'}\n${event.description ?? ''}`,
+    title: event.summary ?? 'Calendar event',
+    source: 'calendar',
+    type: 'event',
+    url: event.htmlLink,
+  }));
 
+  const count = await indexIngestDocs(docs, chunkText);
   await updateOnboarding(input.tenantId, { calendar: count });
   return count;
 }
 
-export async function ingestGoogleContactsActivity(input: { tenantId: string }): Promise<number> {
+export async function ingestGoogleContactsActivity(input: IngestActivityInput): Promise<number> {
   const token = await getValidAccessToken('google', input.tenantId);
   if (!token) return 0;
 
@@ -266,18 +288,17 @@ export async function ingestGoogleContactsActivity(input: { tenantId: string }):
       organizations?: Array<{ name?: string }>;
     }>;
   };
-  let count = 0;
 
+  let count = 0;
   for (const person of list.connections ?? []) {
     const name = person.names?.[0]?.displayName ?? 'Contact';
     const email = person.emailAddresses?.[0]?.value ?? '';
     const org = person.organizations?.[0]?.name ?? '';
-    const text = `${name}\n${email}\n${org}`;
     const id = person.resourceName?.replace('people/', '') ?? name;
     count += await indexIngestDoc({
       tenantId: input.tenantId,
       docId: `${input.tenantId}:contact:${id}`,
-      text,
+      text: `${name}\n${email}\n${org}`,
       title: name,
       source: 'contacts',
       type: 'contact',
@@ -292,7 +313,7 @@ export async function ingestGoogleContactsActivity(input: { tenantId: string }):
   return count;
 }
 
-export async function ingestGoogleTasksActivity(input: { tenantId: string }): Promise<number> {
+export async function ingestGoogleTasksActivity(input: IngestActivityInput): Promise<number> {
   const token = await getValidAccessToken('google', input.tenantId);
   if (!token) return 0;
 
@@ -301,8 +322,8 @@ export async function ingestGoogleTasksActivity(input: { tenantId: string }): Pr
   });
   if (!listsRes.ok) return 0;
   const lists = (await listsRes.json()) as { items?: Array<{ id: string; title: string }> };
-  let count = 0;
 
+  const docs: IngestDocInput[] = [];
   for (const list of lists.items ?? []) {
     const tasksRes = await fetch(
       `https://tasks.googleapis.com/tasks/v1/lists/${list.id}/tasks?maxResults=100`,
@@ -310,14 +331,14 @@ export async function ingestGoogleTasksActivity(input: { tenantId: string }): Pr
     );
     if (!tasksRes.ok) continue;
     const tasks = (await tasksRes.json()) as {
-      items?: Array<{ id: string; title?: string; notes?: string }>;
+      items?: Array<{ id: string; title?: string; notes?: string; updated?: string }>;
     };
     for (const task of tasks.items ?? []) {
-      const text = `${task.title ?? 'Task'}\n${task.notes ?? ''}`;
-      count += await indexIngestDoc({
+      if (input.since && task.updated && task.updated < input.since) continue;
+      docs.push({
         tenantId: input.tenantId,
         docId: `${input.tenantId}:task:${list.id}:${task.id}`,
-        text,
+        text: `${task.title ?? 'Task'}\n${task.notes ?? ''}`,
         title: task.title ?? 'Task',
         source: 'tasks',
         type: 'task',
@@ -326,17 +347,32 @@ export async function ingestGoogleTasksActivity(input: { tenantId: string }): Pr
     }
   }
 
+  const count = await indexIngestDocs(docs, chunkText);
   await updateOnboarding(input.tenantId, { tasks: count });
   return count;
 }
 
-export async function ingestGitHubActivity(input: { tenantId: string }): Promise<number> {
+export async function ingestGitHubActivity(input: IngestActivityInput): Promise<number> {
   const token = await getValidAccessToken('github', input.tenantId);
   if (!token) return 0;
 
+  const since = await resolveSince(input.tenantId, 'github', input.since);
+  const tenantCtx = workerTenantContext(input.tenantId);
+  const scopedRepos = await getGitHubIngestRepos(tenantCtx);
+  const projects = await listTenantProjects(tenantCtx);
+
+  if (!scopedRepos.length) {
+    await upsertIngestionProgress(input.tenantId, 'github', {
+      status: 'pending',
+      total_documents: 0,
+      processed_documents: 0,
+    });
+    return 0;
+  }
+
   await upsertIngestionProgress(input.tenantId, 'github', {
     status: 'running',
-    total_documents: 200,
+    total_documents: scopedRepos.length * 20,
     processed_documents: 0,
   });
 
@@ -344,27 +380,53 @@ export async function ingestGitHubActivity(input: { tenantId: string }): Promise
     Authorization: `Bearer ${token}`,
     Accept: 'application/vnd.github+json',
   };
-  const reposRes = await fetch('https://api.github.com/user/repos?per_page=30&sort=updated', {
-    headers,
-  });
+  const reposRes = await fetch(
+    'https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member',
+    { headers },
+  );
   if (!reposRes.ok) {
     await upsertIngestionProgress(input.tenantId, 'github', { status: 'failed' });
     return 0;
   }
-  const repos = (await reposRes.json()) as Array<{
+  const allRepos = (await reposRes.json()) as Array<{
     full_name: string;
     html_url: string;
     default_branch?: string;
   }>;
+  const allowed = new Set(scopedRepos);
+  const repos = allRepos.filter((repo) => allowed.has(repo.full_name));
+
   let count = 0;
 
-  for (const repo of repos.slice(0, 10)) {
-    await upsertNeo4jNode(input.tenantId, 'Project', { id: repo.full_name, name: repo.full_name });
+  for (const repo of repos) {
+    const clientProjectId = projectIdForRepo(projects, repo.full_name);
+    const repoMeta = {
+      project: repo.full_name,
+      ...(clientProjectId ? { clientProjectId } : {}),
+    };
+    await upsertNeo4jNode(input.tenantId, 'Project', {
+      id: repo.full_name,
+      name: repo.full_name,
+      ...(clientProjectId ? { clientProjectId } : {}),
+    });
 
-    const issuesRes = await fetch(
-      `https://api.github.com/repos/${repo.full_name}/issues?state=all&per_page=100`,
-      { headers },
-    );
+    const sinceParam = since ? `&since=${encodeURIComponent(since)}` : '';
+    const [issuesRes, prsRes, commitsRes, contentsRes] = await Promise.all([
+      fetch(
+        `https://api.github.com/repos/${repo.full_name}/issues?state=all&per_page=100${sinceParam}`,
+        { headers },
+      ),
+      fetch(`https://api.github.com/repos/${repo.full_name}/pulls?state=all&per_page=100`, {
+        headers,
+      }),
+      fetch(`https://api.github.com/repos/${repo.full_name}/commits?per_page=100${sinceParam}`, {
+        headers,
+      }),
+      fetch(`https://api.github.com/repos/${repo.full_name}/contents`, { headers }),
+    ]);
+
+    const repoDocs: IngestDocInput[] = [];
+
     if (issuesRes.ok) {
       const issues = (await issuesRes.json()) as Array<{
         number: number;
@@ -375,52 +437,42 @@ export async function ingestGitHubActivity(input: { tenantId: string }): Promise
       }>;
       for (const issue of issues) {
         if (issue.pull_request) continue;
-        const text = `${issue.title}\n${issue.body ?? ''}`;
-        const docId = `${input.tenantId}:github:issue:${repo.full_name}:${issue.number}`;
-        count += await indexIngestDoc({
+        repoDocs.push({
           tenantId: input.tenantId,
-          docId,
-          text,
+          docId: `${input.tenantId}:github:issue:${repo.full_name}:${issue.number}`,
+          text: `${issue.title}\n${issue.body ?? ''}`,
           title: issue.title,
           source: 'github',
           type: 'issue',
           url: issue.html_url,
-          extraMeta: { project: repo.full_name },
+          extraMeta: repoMeta,
         });
-        await upsertNeo4jNode(input.tenantId, 'Issue', { id: docId, title: issue.title });
       }
     }
 
-    const prsRes = await fetch(
-      `https://api.github.com/repos/${repo.full_name}/pulls?state=all&per_page=100`,
-      { headers },
-    );
     if (prsRes.ok) {
       const prs = (await prsRes.json()) as Array<{
         number: number;
         title: string;
         body?: string;
         html_url: string;
+        updated_at?: string;
       }>;
       for (const pr of prs) {
-        const text = `${pr.title}\n${pr.body ?? ''}`;
-        count += await indexIngestDoc({
+        if (since && pr.updated_at && pr.updated_at < since) continue;
+        repoDocs.push({
           tenantId: input.tenantId,
           docId: `${input.tenantId}:github:pr:${repo.full_name}:${pr.number}`,
-          text,
+          text: `${pr.title}\n${pr.body ?? ''}`,
           title: pr.title,
           source: 'github',
           type: 'pull_request',
           url: pr.html_url,
-          extraMeta: { project: repo.full_name },
+          extraMeta: repoMeta,
         });
       }
     }
 
-    const commitsRes = await fetch(
-      `https://api.github.com/repos/${repo.full_name}/commits?per_page=100`,
-      { headers },
-    );
     if (commitsRes.ok) {
       const commits = (await commitsRes.json()) as Array<{
         sha: string;
@@ -428,7 +480,7 @@ export async function ingestGitHubActivity(input: { tenantId: string }): Promise
         html_url: string;
       }>;
       for (const commit of commits) {
-        count += await indexIngestDoc({
+        repoDocs.push({
           tenantId: input.tenantId,
           docId: `${input.tenantId}:github:commit:${repo.full_name}:${commit.sha}`,
           text: commit.commit.message,
@@ -436,14 +488,11 @@ export async function ingestGitHubActivity(input: { tenantId: string }): Promise
           source: 'github',
           type: 'commit',
           url: commit.html_url,
-          extraMeta: { project: repo.full_name },
+          extraMeta: repoMeta,
         });
       }
     }
 
-    const contentsRes = await fetch(`https://api.github.com/repos/${repo.full_name}/contents`, {
-      headers,
-    });
     if (contentsRes.ok) {
       const entries = (await contentsRes.json()) as Array<{
         name: string;
@@ -451,26 +500,36 @@ export async function ingestGitHubActivity(input: { tenantId: string }): Promise
         type: string;
         download_url?: string;
       }>;
-      for (const entry of entries) {
-        if (entry.type !== 'file') continue;
-        const ext = entry.name.split('.').pop()?.toLowerCase();
-        if (!ext || !['ts', 'tsx', 'js', 'md', 'json'].includes(ext)) continue;
-        if (!entry.download_url) continue;
-        const fileRes = await fetch(entry.download_url, { headers });
-        if (!fileRes.ok) continue;
-        const text = (await fileRes.text()).slice(0, 30_000);
-        count += await indexIngestDoc({
-          tenantId: input.tenantId,
-          docId: `${input.tenantId}:github:file:${repo.full_name}:${entry.path}`,
-          text,
-          title: entry.path,
-          source: 'github',
-          type: 'source_file',
-          url: `https://github.com/${repo.full_name}/blob/${repo.default_branch ?? 'main'}/${entry.path}`,
-          extraMeta: { project: repo.full_name },
-        });
-      }
+      const fileDocs = await mapInParallel(
+        entries.filter((e) => e.type === 'file'),
+        FETCH_CONCURRENCY,
+        async (entry): Promise<IngestDocInput | null> => {
+          const ext = entry.name.split('.').pop()?.toLowerCase();
+          if (!ext || !['ts', 'tsx', 'js', 'md', 'json'].includes(ext)) return null;
+          if (!entry.download_url) return null;
+          const fileRes = await fetch(entry.download_url, { headers });
+          if (!fileRes.ok) return null;
+          return {
+            tenantId: input.tenantId,
+            docId: `${input.tenantId}:github:file:${repo.full_name}:${entry.path}`,
+            text: (await fileRes.text()).slice(0, 30_000),
+            title: entry.path,
+            source: 'github',
+            type: 'source_file',
+            url: `https://github.com/${repo.full_name}/blob/${repo.default_branch ?? 'main'}/${entry.path}`,
+            extraMeta: repoMeta,
+          };
+        },
+      );
+      repoDocs.push(...fileDocs.filter((d): d is IngestDocInput => d !== null));
     }
+
+    const repoCount = await indexIngestDocs(repoDocs, chunkText);
+    count += repoCount;
+    await upsertIngestionProgress(input.tenantId, 'github', {
+      processed_documents: count,
+      status: 'running',
+    });
   }
 
   await upsertIngestionProgress(input.tenantId, 'github', {
@@ -478,6 +537,7 @@ export async function ingestGitHubActivity(input: { tenantId: string }): Promise
     total_documents: count,
     processed_documents: count,
   });
+  await updateLastSyncedAt(input.tenantId, 'github');
   await updateOnboarding(input.tenantId, { github: count });
   return count;
 }
@@ -490,9 +550,12 @@ type NotionPageRef = {
   properties?: Record<string, unknown>;
 };
 
-export async function ingestNotionActivity(input: { tenantId: string }): Promise<number> {
+export async function ingestNotionActivity(input: IngestActivityInput): Promise<number> {
   const token = await getValidAccessToken('notion', input.tenantId);
   if (!token) return 0;
+
+  const since = await resolveSince(input.tenantId, 'notion', input.since);
+  const sinceMs = since ? new Date(since).getTime() : 0;
 
   await upsertIngestionProgress(input.tenantId, 'notion', {
     status: 'running',
@@ -511,6 +574,9 @@ export async function ingestNotionActivity(input: { tenantId: string }): Promise
       last_edited_time?: string;
       properties?: Record<string, unknown>;
     };
+    if (sinceMs && page.last_edited_time && new Date(page.last_edited_time).getTime() < sinceMs) {
+      continue;
+    }
     pageRefs.set(page.id, {
       id: page.id,
       title: pageTitleFromProperties(page.properties),
@@ -523,8 +589,7 @@ export async function ingestNotionActivity(input: { tenantId: string }): Promise
   const databases = await listDatabases(token);
   for (const item of databases) {
     if (item.object !== 'database' || !('id' in item)) continue;
-    const dbId = item.id;
-    const rows = await queryDatabase(token, dbId);
+    const rows = await queryDatabase(token, item.id);
     for (const row of rows) {
       if (row.object !== 'page' || !('id' in row)) continue;
       const page = row as {
@@ -533,6 +598,9 @@ export async function ingestNotionActivity(input: { tenantId: string }): Promise
         last_edited_time?: string;
         properties?: Record<string, unknown>;
       };
+      if (sinceMs && page.last_edited_time && new Date(page.last_edited_time).getTime() < sinceMs) {
+        continue;
+      }
       pageRefs.set(page.id, {
         id: page.id,
         title: pageTitleFromProperties(page.properties),
@@ -562,29 +630,23 @@ export async function ingestNotionActivity(input: { tenantId: string }): Promise
         continue;
       }
 
-      for (const [i, chunk] of chunkTextWithOverlap(text).entries()) {
-        const docId =
+      const chunks = chunkTextWithOverlap(text);
+      const ingestChunks = chunks.map((chunk, i) => ({
+        id:
           i === 0
             ? `${input.tenantId}:notion:${page.id}`
-            : `${input.tenantId}:notion:${page.id}:${i}`;
-        await indexDocument(docId, chunk, {
-          title: page.title,
-          source: 'notion',
-          type: 'page',
-          tenant_id: input.tenantId,
-          url: page.url,
-          last_edited: page.lastEdited,
-        });
-        await indexDocumentEs(input.tenantId, {
-          id: docId,
-          content: chunk,
-          title: page.title,
-          source: 'notion',
-          sourceId: page.id,
-          url: page.url,
-        });
-        count += 1;
-      }
+            : `${input.tenantId}:notion:${page.id}:${i}`,
+        text: chunk,
+        title: page.title,
+        source: 'notion',
+        type: 'page',
+        tenantId: input.tenantId,
+        url: page.url,
+        docId: `${input.tenantId}:notion:${page.id}`,
+        extraMeta: { last_edited: page.lastEdited },
+      }));
+
+      count += await indexChunksBatch(ingestChunks);
 
       await upsertNeo4jNode(input.tenantId, 'Document', {
         id: `${input.tenantId}:notion:${page.id}`,
@@ -639,6 +701,7 @@ export async function ingestNotionActivity(input: { tenantId: string }): Promise
     total_documents: total,
     processed_documents: processed,
   });
+  await updateLastSyncedAt(input.tenantId, 'notion');
   await updateOnboarding(input.tenantId, { notion: count });
   return count;
 }

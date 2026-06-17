@@ -18,3 +18,13 @@ export function spawnIngestResync(tenantId: string, provider: string): boolean {
     return false;
   }
 }
+
+/** Spawn parallel resync for all connected providers (direct mode). */
+export function spawnIngestResyncAll(tenantId: string, providers: string[]): boolean {
+  const mapped = providers.map((p) => (p === 'google' ? 'google-workspace' : p));
+  let ok = true;
+  for (const provider of mapped) {
+    if (!spawnIngestResync(tenantId, provider)) ok = false;
+  }
+  return ok;
+}

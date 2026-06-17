@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSyncExternalStore } from 'react';
 
 import { FloatingIconsHero } from '@/components/ui/floating-icons-hero-section';
 import { CONNECTOR_TOTAL } from '@/lib/landing-tools';
@@ -10,10 +11,17 @@ import { HERO_FLOATING_ICONS } from './connector-icons';
 
 function Reveal({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   const { ref, visible } = useInView(0.12);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const revealed = !mounted || visible;
+
   return (
     <div
       ref={ref}
-      className={`transition-all duration-700 ease-out ${visible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} ${className}`}
+      className={`transition-all duration-700 ease-out ${revealed ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} ${className}`}
     >
       {children}
     </div>

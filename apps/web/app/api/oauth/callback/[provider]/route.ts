@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server';
 
 import { auditAction } from '@/lib/auth';
 import {
+  accountProviderForOAuth,
   connectorHealthProvider,
+  connectorIdFromOAuthProvider,
   decodeOAuthState,
   exchangeCodeForTokens,
+  isConnectorComingSoon,
   normalizeOAuthProvider,
   queryWithTenant,
   saveConnectedAccount,
@@ -42,7 +45,7 @@ export async function GET(
   const appBase = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
   if (oauthError) {
-    return NextResponse.redirect(`${appBase}/onboarding?error=${encodeURIComponent(oauthError)}`);
+    return NextResponse.redirect(`${appBase}/connectors?error=${encodeURIComponent(oauthError)}`);
   }
   if (!code || !stateRaw) {
     return NextResponse.json({ error: 'Missing code or state' }, { status: 400 });
@@ -51,6 +54,12 @@ export async function GET(
   const state = decodeOAuthState(stateRaw);
   if (!state || state.provider !== provider) {
     return NextResponse.json({ error: 'Invalid OAuth state' }, { status: 400 });
+  }
+
+  if (isConnectorComingSoon(connectorIdFromOAuthProvider(provider))) {
+    return NextResponse.redirect(
+      `${appBase}/connectors?error=${encodeURIComponent('This connector is coming soon')}`,
+    );
   }
 
   const tenant: TenantContext = {
@@ -64,8 +73,9 @@ export async function GET(
   };
 
   try {
-    const tokens = await exchangeCodeForTokens(provider, code);
-    await saveConnectedAccount(state.tenantId, provider, tokens);
+    const tokens = await exchangeCodeForTokens(provider, code, undefined, state.codeVerifier);
+    const accountProvider = accountProviderForOAuth(provider);
+    await saveConnectedAccount(state.tenantId, accountProvider, tokens);
 
     const healthProvider = connectorHealthProvider(provider);
     const connectionId = `${state.tenantId}-${healthProvider}`;
@@ -86,6 +96,8 @@ export async function GET(
     return Response.redirect(returnTo.toString());
   } catch (err) {
     const message = err instanceof Error ? err.message : 'oauth_failed';
-    return NextResponse.redirect(`${appBase}/onboarding?error=${encodeURIComponent(message)}`);
+    const returnTo = new URL(state.returnUrl);
+    returnTo.searchParams.set('error', message);
+    return Response.redirect(returnTo.toString());
   }
 }

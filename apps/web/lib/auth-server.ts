@@ -45,6 +45,11 @@ export const auth = betterAuth({
         defaultValue: 'admin',
         input: false,
       },
+      employeeId: {
+        type: 'string',
+        required: false,
+        input: false,
+      },
     },
   },
   databaseHooks: {

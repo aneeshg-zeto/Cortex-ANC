@@ -16,6 +16,8 @@ export type AskOptions = {
   projectIds?: string[];
   provider?: LlmProvider;
   history?: Array<{ role: string; content: string }>;
+  timezone?: string;
+  userName?: string;
 };
 
 export async function askQuestion(

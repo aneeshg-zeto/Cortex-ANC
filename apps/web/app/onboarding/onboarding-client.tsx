@@ -28,11 +28,6 @@ const OAUTH_CONNECTORS = [
 
 const API_CONNECTORS = [{ id: 'notion', label: 'Notion' }] as const;
 
-const COMING_SOON = [
-  { id: 'linear', label: 'Linear' },
-  { id: 'discord', label: 'Discord' },
-];
-
 export default function OnboardingClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,9 +35,12 @@ export default function OnboardingClient() {
   const [connectors, setConnectors] = useState<ConnectorRow[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
-  const [connectError, setConnectError] = useState('');
+  const paramError = searchParams.get('error');
+  const [localConnectError, setConnectError] = useState('');
+  const connectError = localConnectError || (paramError ? decodeURIComponent(paramError) : '');
   const [optimisticConnected, setOptimisticConnected] = useState<Set<string>>(new Set());
   const [connectingNotion, setConnectingNotion] = useState(false);
+  const [needsGitHubScope, setNeedsGitHubScope] = useState(false);
   const handledRedirect = useRef<string | null>(null);
 
   const isAdmin = user?.role === 'admin';
@@ -62,18 +60,51 @@ export default function OnboardingClient() {
       .then((r) => r.json())
       .then(setConnectionStatus)
       .catch(() => null);
+    fetch('/api/github/scope')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { needsVerification?: boolean } | null) => {
+        setNeedsGitHubScope(Boolean(d?.needsVerification));
+      })
+      .catch(() => null);
   }
 
   useEffect(() => {
-    const err = searchParams.get('error');
-    if (err) setConnectError(decodeURIComponent(err));
-  }, [searchParams]);
-
-  useEffect(() => {
     if (!isLoaded || !tenantId) return;
-    refreshStatus();
-    const t = setInterval(refreshStatus, 3000);
-    return () => clearInterval(t);
+    let cancelled = false;
+    const poll = () => {
+      if (cancelled || !tenantId) return;
+      const q = `?tenant_id=${tenantId}`;
+      void fetch('/api/onboarding/status')
+        .then((r) => r.json())
+        .then((data) => {
+          if (!cancelled) setStatus(data as OnboardingStatus);
+        })
+        .catch(() => null);
+      void fetch(`/api/admin/connectors-status${q}`)
+        .then((r) => r.json())
+        .then((d: { status: ConnectorRow[] }) => {
+          if (!cancelled) setConnectors(d.status ?? []);
+        })
+        .catch(() => null);
+      void fetch('/api/connections/status')
+        .then((r) => r.json())
+        .then((data) => {
+          if (!cancelled) setConnectionStatus(data as ConnectionStatus);
+        })
+        .catch(() => null);
+      void fetch('/api/github/scope')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { needsVerification?: boolean } | null) => {
+          if (!cancelled) setNeedsGitHubScope(Boolean(d?.needsVerification));
+        })
+        .catch(() => null);
+    };
+    poll();
+    const t = setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
   }, [isLoaded, tenantId]);
 
   useEffect(() => {
@@ -82,28 +113,30 @@ export default function OnboardingClient() {
     const key = success ?? connected;
     if (!key || !tenantId || handledRedirect.current === key) return;
     handledRedirect.current = key;
-    setConnectError('');
-    setOptimisticConnected((prev) => new Set(prev).add(key));
-    refreshStatus();
+    const timer = window.setTimeout(() => {
+      setConnectError('');
+      setOptimisticConnected((prev) => new Set(prev).add(key));
+      refreshStatus();
+    }, 0);
 
     if (success) {
       router.replace('/onboarding');
-      return;
-    }
-
-    fetch('/api/onboarding/connected', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider: connected }),
-    })
-      .then(async (r) => {
-        if (!r.ok) {
-          const err = (await r.json().catch(() => ({}))) as { error?: string };
-          throw new Error(err.error ?? `Connect failed (${r.status})`);
-        }
-        router.replace('/onboarding');
+    } else {
+      fetch('/api/onboarding/connected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: connected }),
       })
-      .catch((e: Error) => setConnectError(e.message));
+        .then(async (r) => {
+          if (!r.ok) {
+            const err = (await r.json().catch(() => ({}))) as { error?: string };
+            throw new Error(err.error ?? `Connect failed (${r.status})`);
+          }
+          router.replace('/onboarding');
+        })
+        .catch((e: Error) => setConnectError(e.message));
+    }
+    return () => window.clearTimeout(timer);
   }, [searchParams, tenantId, router]);
 
   function isConnected(providerId: string): boolean {
@@ -115,7 +148,9 @@ export default function OnboardingClient() {
 
   function connect(connectAs: string) {
     if (!tenantId || !isAdmin) return;
-    window.location.href = `/api/auth/connect/${encodeURIComponent(connectAs)}`;
+    const returnUrl = `${window.location.origin}/connectors/oauth-complete`;
+    const url = `/api/auth/connect/${encodeURIComponent(connectAs)}?return_url=${encodeURIComponent(returnUrl)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   async function connectNotion(resync = false) {
@@ -329,24 +364,27 @@ export default function OnboardingClient() {
               </li>
             );
           })}
-
-          {COMING_SOON.map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center justify-between border border-white/5 bg-zinc-950 px-4 py-4 opacity-50"
-            >
-              <div className="flex items-center gap-3">
-                <Circle className="h-5 w-5 shrink-0 text-zinc-700" aria-hidden />
-                <div>
-                  <p className="font-medium">{c.label}</p>
-                  <p className="text-xs text-zinc-600">Coming soon</p>
-                </div>
-              </div>
-            </li>
-          ))}
         </ul>
 
-        {coreConnected && (
+        <Link
+          href="/connectors"
+          className="mt-8 inline-block text-sm text-[#14b8a6] hover:underline"
+        >
+          Browse all connectors →
+        </Link>
+
+        {coreConnected && needsGitHubScope && (
+          <div className="mt-12">
+            <Link
+              href="/onboarding/github-repos"
+              className="inline-block w-full bg-white px-8 py-4 text-center text-sm font-semibold text-black hover:bg-zinc-100"
+            >
+              Continue →
+            </Link>
+          </div>
+        )}
+
+        {coreConnected && !needsGitHubScope && (
           <div className="mt-12 space-y-3">
             <Link
               href="/executive-desk"

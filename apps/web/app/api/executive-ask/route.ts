@@ -33,6 +33,8 @@ export const POST = withAuth(
         question?: string;
         provider?: 'groq' | 'ollama';
         history?: Array<{ role: string; content: string }>;
+        timezone?: string;
+        userName?: string;
       };
 
       if (!body.question?.trim()) {
@@ -44,6 +46,8 @@ export const POST = withAuth(
         projectIds: user.projectIds,
         provider: body.provider,
         history: body.history,
+        timezone: body.timezone,
+        userName: body.userName ?? user.name?.split(' ')[0],
       });
       const sources = result.sources.map((s) => ({
         id: s.id,
@@ -52,6 +56,8 @@ export const POST = withAuth(
         excerpt: s.excerpt,
         from: s.from,
         date: s.date,
+        source_url: s.url,
+        url: s.url,
       }));
 
       await logInteraction(body.question.trim(), result.answer, sources);

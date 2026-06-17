@@ -8,11 +8,12 @@ import {
   ChatMessageContent,
   ChatWindow,
   SourceCitations,
-  Spinner,
+  TypingIndicator,
   type SourceCitationProps,
 } from '@cortex/ui';
 
 import { AppShell, ProjectBadge } from '@/components/app-shell';
+import { SyncAllButton } from '@/components/sync-all-button';
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
 type DeskMessage = {
@@ -48,10 +49,17 @@ export function ExecutiveDeskPage() {
         .slice(-6)
         .map((m) => ({ role: m.role, content: m.content }));
 
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
       const response = await fetch('/api/executive-ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, history }),
+        body: JSON.stringify({
+          question,
+          history,
+          timezone,
+          userName: user?.name?.split(' ')[0],
+        }),
       });
       const data = (await response.json()) as {
         answer?: string;
@@ -88,7 +96,12 @@ export function ExecutiveDeskPage() {
     <AppShell
       title="Executive Desk"
       subtitle="Cross-tool intelligence for leadership"
-      badge={<ProjectBadge tenantId={tenantId} />}
+      badge={
+        <div className="flex shrink-0 items-center gap-2">
+          <SyncAllButton />
+          <ProjectBadge tenantId={tenantId} />
+        </div>
+      }
       footer={
         <ChatInput
           value={input}
@@ -106,7 +119,7 @@ export function ExecutiveDeskPage() {
             {message.role === 'assistant' && (
               <ChatMessageAvatar fallback="CX" variant="cortex" theme="dark" />
             )}
-            <div className="max-w-[85%]">
+            <div className="min-w-0">
               <ChatMessageContent
                 markdown={message.role === 'assistant'}
                 role={message.role}
@@ -123,12 +136,7 @@ export function ExecutiveDeskPage() {
             )}
           </ChatMessage>
         ))}
-        {loading && (
-          <div className="flex items-center gap-2 text-sm text-[#14b8a6]">
-            <Spinner />
-            Cortex is thinking…
-          </div>
-        )}
+        {loading && <TypingIndicator className="px-2 py-1" />}
       </ChatWindow>
     </AppShell>
   );

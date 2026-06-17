@@ -1,7 +1,7 @@
 import type { TenantContext } from '../tenant/types';
 import { queryWithTenant } from '../db/tenant-pool';
 import { decryptToken, encryptToken } from '../crypto/token-encryption';
-import { type AccountProvider, type OAuthTokens, refreshAccessToken } from './oauth';
+import { type AccountProvider, type OAuthTokens } from './oauth';
 
 export type StoredAccountToken = OAuthTokens;
 
@@ -70,7 +70,7 @@ export async function getConnectedAccount(
   };
 }
 
-/** Returns a valid access token, refreshing Google tokens when expired. */
+/** Returns a valid access token, refreshing OAuth tokens when expired. */
 export async function getValidAccessToken(
   provider: AccountProvider,
   tenantId: string,
@@ -80,23 +80,79 @@ export async function getValidAccessToken(
 
   if (provider === 'notion') return stored.accessToken;
 
+  // Trello stores token in accessToken, API key in refreshToken
+  if (provider === 'trello') {
+    const key = stored.refreshToken;
+    const token = stored.accessToken;
+    if (!key || !token) return null;
+    return token;
+  }
+
   const expiresSoon = stored.expiresAt && stored.expiresAt.getTime() < Date.now() + 60_000;
   if (!expiresSoon) return stored.accessToken;
 
-  if (provider === 'google' && stored.refreshToken) {
+  if (stored.refreshToken) {
+    const oauthProvider =
+      provider === 'google' || provider === 'google-workspace'
+        ? 'google'
+        : provider === 'microsoft-365'
+          ? 'microsoft'
+          : provider;
     try {
-      const refreshed = await refreshAccessToken(provider, stored.refreshToken);
-      await saveConnectedAccount(tenantId, provider, {
-        ...refreshed,
-        refreshToken: refreshed.refreshToken ?? stored.refreshToken,
-      });
-      return refreshed.accessToken;
+      const { normalizeExtendedOAuthProvider, refreshExtendedAccessToken } =
+        await import('./connector-oauth');
+      const extended = normalizeExtendedOAuthProvider(oauthProvider);
+      if (extended) {
+        const refreshed = await refreshExtendedAccessToken(extended, stored.refreshToken);
+        await saveConnectedAccount(tenantId, provider, {
+          ...refreshed,
+          refreshToken: refreshed.refreshToken ?? stored.refreshToken,
+        });
+        return refreshed.accessToken;
+      }
     } catch {
       return stored.accessToken;
     }
   }
 
   return stored.accessToken;
+}
+
+/** Providers with stored OAuth/token for this tenant. */
+export async function listConnectedProviders(tenantId: string): Promise<AccountProvider[]> {
+  const ctx = tenantCtx(tenantId);
+  const r = await queryWithTenant<{ provider: AccountProvider }>(
+    ctx,
+    `SELECT provider FROM connected_accounts WHERE tenant_id = $1 ORDER BY provider`,
+    [tenantId],
+  );
+  return r.rows.map((row) => row.provider);
+}
+
+export async function getLastSyncedAt(
+  tenantId: string,
+  provider: AccountProvider,
+): Promise<Date | null> {
+  const ctx = tenantCtx(tenantId);
+  const r = await queryWithTenant<{ last_synced_at: Date | null }>(
+    ctx,
+    `SELECT last_synced_at FROM connected_accounts WHERE tenant_id = $1 AND provider = $2`,
+    [tenantId, provider],
+  );
+  return r.rows[0]?.last_synced_at ?? null;
+}
+
+export async function updateLastSyncedAt(
+  tenantId: string,
+  provider: AccountProvider,
+): Promise<void> {
+  const ctx = tenantCtx(tenantId);
+  await queryWithTenant(
+    ctx,
+    `UPDATE connected_accounts SET last_synced_at = NOW(), updated_at = NOW()
+     WHERE tenant_id = $1 AND provider = $2`,
+    [tenantId, provider],
+  );
 }
 
 export async function upsertConnectorHealth(

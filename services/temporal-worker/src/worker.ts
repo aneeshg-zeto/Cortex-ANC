@@ -8,6 +8,7 @@ loadRootEnv(import.meta.url);
 
 import * as activities from './activities';
 import * as ingestActivities from './ingest-activities';
+import * as oauthIngest from './ingest-oauth-providers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -20,7 +21,7 @@ async function run(): Promise<void> {
     namespace: 'default',
     taskQueue: 'cortex-approvals',
     workflowsPath: path.join(__dirname, 'workflows.ts'),
-    activities: { ...activities, ...ingestActivities },
+    activities: { ...activities, ...ingestActivities, ...oauthIngest },
   });
 
   console.log(`[temporal-worker] listening on ${address} (queue: cortex-approvals)`);

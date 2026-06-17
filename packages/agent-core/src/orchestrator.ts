@@ -9,6 +9,8 @@ export type OrchestratorOptions = {
   projectIds?: string[];
   provider?: LlmProvider;
   history?: Array<{ role: string; content: string }>;
+  timezone?: string;
+  userName?: string;
 };
 
 /** LangGraph-style pipeline — delegates to Cortex Brain. */

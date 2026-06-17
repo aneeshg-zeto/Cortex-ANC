@@ -8,6 +8,11 @@ model_list:
     litellm_params:
       model: gemini/gemini-2.5-flash
       api_key: os.environ/GEMINI_API_KEY
+  # Batch embeddings (Gemini embed via same LiteLLM gateway)
+  - model_name: cortex-embed
+    litellm_params:
+      model: gemini/text-embedding-004
+      api_key: os.environ/GEMINI_API_KEY
 
 litellm_settings:
   num_retries: 1

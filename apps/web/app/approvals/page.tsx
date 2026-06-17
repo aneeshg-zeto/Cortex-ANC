@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge, GlassCard } from '@cortex/ui';
 import { CortexNav } from '@/components/cortex-nav';
 
@@ -17,16 +17,26 @@ export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch('/api/approvals');
+      const data = (await res.json()) as { approvals: Approval[] };
+      if (cancelled) return;
+      setApprovals(data.approvals ?? []);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function load() {
     const res = await fetch('/api/approvals');
     const data = (await res.json()) as { approvals: Approval[] };
     setApprovals(data.approvals ?? []);
     setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  }
 
   async function decide(id: string, decision: 'approved' | 'denied') {
     await fetch('/api/approvals', {

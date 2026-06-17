@@ -1,4 +1,4 @@
-import { llmClient } from '@cortex/shared';
+import { EMAIL_REPLY_SYSTEM_PROMPT, llmClient } from '@cortex/shared';
 
 import { hybridRetrieveContext } from './hybrid-retrieval';
 import type { SourceCitation } from './retrieval';
@@ -21,9 +21,13 @@ export async function draftClientReply(
 
   const draft = await llmClient.complete(
     `Client email:\n${emailContent}\n\nCompany context:\n${context || 'No context.'}${
-      graphContext ? `\nGraph:\n${graphContext}` : ''
+      graphContext ? `\n\nGraph:\n${graphContext}` : ''
     }`,
-    { agentRole: 'clientReply', temperature: 0.55, maxTokens: 512 },
+    {
+      systemPrompt: EMAIL_REPLY_SYSTEM_PROMPT,
+      temperature: 0.55,
+      maxTokens: 768,
+    },
   );
 
   const pendingApprovalId = options?.skipApproval

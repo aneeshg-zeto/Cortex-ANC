@@ -10,12 +10,10 @@ import { useCortexUser } from '@/hooks/use-cortex-user';
 const links = [
   { href: '/executive-desk', label: 'Executive' },
   { href: '/email-desk', label: 'Email' },
-  { href: '/chat', label: 'Chat' },
-  { href: '/approvals', label: 'Approvals' },
-  { href: '/admin', label: 'Admin' },
   { href: '/connectors', label: 'Connectors' },
+  { href: '/approvals', label: 'Approvals' },
+  { href: '/panel', label: 'Panel' },
   { href: '/graph', label: 'Graph' },
-  { href: '/brain', label: 'Brain' },
 ];
 
 export function CortexNav() {

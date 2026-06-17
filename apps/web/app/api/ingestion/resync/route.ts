@@ -5,6 +5,7 @@ import '@/lib/ensure-env';
 import { spawnIngestResync } from '@/lib/spawn-ingest';
 import { queryWithTenant } from '@cortex/shared';
 import { startIngestInitialDataWorkflow } from '@cortex/shared/temporal/client';
+import { canManageWorkspace } from '@cortex/auth';
 
 const PROVIDER_ALIASES: Record<string, string> = {
   google: 'google-workspace',
@@ -15,8 +16,8 @@ const PROVIDER_ALIASES: Record<string, string> = {
 
 export const POST = withAuth(
   async (request, { user, tenant }) => {
-    if (user.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (!canManageWorkspace(user.role)) {
+      return NextResponse.json({ error: 'Workspace admin access required' }, { status: 403 });
     }
 
     const body = (await request.json().catch(() => ({}))) as { provider?: string };

@@ -3,17 +3,18 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
-import { Brain, LayoutDashboard, LogOut, Mail, Settings } from 'lucide-react';
+import { LayoutDashboard, LayoutPanelTop, LogOut, Mail, Plug } from 'lucide-react';
 
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
 import { IngestionStatusBar } from './ingestion-status-bar';
+import { ThemeToggle } from './theme-toggle';
 
 const NAV = [
   { href: '/executive-desk', label: 'Executive Desk', icon: LayoutDashboard },
   { href: '/email-desk', label: 'Email Desk', icon: Mail },
-  { href: '/brain', label: 'Brain Chat', icon: Brain },
-  { href: '/admin', label: 'Admin', icon: Settings },
+  { href: '/connectors', label: 'Connectors', icon: Plug },
+  { href: '/panel', label: 'Panel', icon: LayoutPanelTop },
 ] as const;
 
 export function AppShell({
@@ -85,12 +86,15 @@ export function AppShell({
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between border-b border-[#2a2a2a] bg-[#0f0f0f] px-6 py-4">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-white">{title}</h1>
+              <h1 className="font-sans text-xl font-semibold tracking-tight text-white">{title}</h1>
               {subtitle && <p className="text-sm text-zinc-500">{subtitle}</p>}
             </div>
-            {badge}
+            <div className="flex shrink-0 items-center gap-2">
+              {badge}
+              <ThemeToggle />
+            </div>
           </header>
-          <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+          <div className="min-h-0 flex-1 overflow-hidden bg-[#0a0a0a]">{children}</div>
           {footer && <div className="border-t border-[#2a2a2a] bg-[#0f0f0f] p-4">{footer}</div>}
         </div>
       </div>

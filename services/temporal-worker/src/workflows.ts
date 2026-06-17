@@ -1,13 +1,26 @@
-import { condition, defineSignal, proxyActivities, setHandler } from '@temporalio/workflow';
+import {
+  condition,
+  defineSignal,
+  executeChild,
+  proxyActivities,
+  setHandler,
+} from '@temporalio/workflow';
 
-import type { ApprovalDecision, HandleClientReplyInput, IngestInitialDataInput } from './types';
+import type {
+  ApprovalDecision,
+  HandleClientReplyInput,
+  IngestInitialDataInput,
+  IngestProviderInput,
+} from './types';
 
 const { executeApprovedActionActivity } = proxyActivities<typeof import('./activities')>({
   startToCloseTimeout: '2 minutes',
   retry: { maximumAttempts: 3 },
 });
 
-const ingestActivities = proxyActivities<typeof import('./ingest-activities')>({
+const ingestActivities = proxyActivities<
+  typeof import('./ingest-activities') & typeof import('./ingest-oauth-providers')
+>({
   startToCloseTimeout: '15 minutes',
   retry: { maximumAttempts: 2 },
 });
@@ -31,29 +44,96 @@ export async function handleClientReply(input: HandleClientReplyInput): Promise<
   return { status: 'sent', result };
 }
 
+const PLACEHOLDER_PROVIDERS = new Set(['salesforce']);
+
+/** Ingest a single provider (child workflow). */
+export async function ingestProviderData(input: IngestProviderInput): Promise<number> {
+  const base = { tenantId: input.tenantId, since: input.since };
+  switch (input.provider) {
+    case 'google-workspace':
+    case 'gmail':
+    case 'google':
+      return ingestActivities.ingestGoogleWorkspaceActivity(base);
+    case 'github':
+      return ingestActivities.ingestGitHubActivity(base);
+    case 'notion':
+      return ingestActivities.ingestNotionActivity(base);
+    case 'slack':
+      return ingestActivities.ingestSlackActivity(base);
+    case 'discord':
+      return ingestActivities.ingestDiscordActivity(base);
+    case 'trello':
+      return ingestActivities.ingestTrelloActivity(base);
+    case 'jira':
+      return ingestActivities.ingestJiraActivity(base);
+    case 'confluence':
+      return ingestActivities.ingestConfluenceActivity(base);
+    case 'microsoft-365':
+      return ingestActivities.ingestMicrosoft365Activity(base);
+    case 'miro':
+      return ingestActivities.ingestMiroActivity(base);
+    case 'loom':
+      return ingestActivities.ingestLoomActivity(base);
+    case 'linear':
+      return ingestActivities.ingestLinearActivity(base);
+    case 'asana':
+      return ingestActivities.ingestAsanaActivity(base);
+    case 'clickup':
+      return ingestActivities.ingestClickUpActivity(base);
+    case 'airtable':
+      return ingestActivities.ingestAirtableActivity(base);
+    case 'todoist':
+      return ingestActivities.ingestTodoistActivity(base);
+    case 'dropbox':
+      return ingestActivities.ingestDropboxActivity(base);
+    case 'box':
+      return ingestActivities.ingestBoxActivity(base);
+    case 'calendly':
+      return ingestActivities.ingestCalendlyActivity(base);
+    case 'zoom':
+      return ingestActivities.ingestZoomActivity(base);
+    case 'figma':
+      return ingestActivities.ingestFigmaActivity(base);
+    default:
+      if (PLACEHOLDER_PROVIDERS.has(input.provider)) {
+        return ingestActivities.ingestOAuthPlaceholderActivity({
+          ...base,
+          provider: input.provider,
+        });
+      }
+      return 0;
+  }
+}
+
+function normalizeProviders(providers: string[]): string[] {
+  const googleAliases = new Set(['google-workspace', 'gmail', 'google']);
+  const out = new Set<string>();
+  for (const p of providers) {
+    if (googleAliases.has(p)) out.add('google-workspace');
+    else out.add(p);
+  }
+  return [...out];
+}
+
 export async function ingestInitialData(input: IngestInitialDataInput): Promise<{
   status: 'complete';
   documentsIndexed: number;
 }> {
-  let total = 0;
-  const googleProviders = ['google-workspace', 'gmail', 'google'];
-  const wantsGoogle = input.providers.some((p) => googleProviders.includes(p));
-  const wantsGitHub = input.providers.includes('github');
-  const wantsNotion = input.providers.includes('notion');
+  const providers =
+    input.providers.includes('*') || input.providers.length === 0
+      ? await ingestActivities.resolveIngestProvidersActivity(input.tenantId)
+      : normalizeProviders(input.providers);
 
-  if (wantsGoogle) {
-    total += await ingestActivities.ingestGmailActivity({ tenantId: input.tenantId });
-    total += await ingestActivities.ingestGoogleDriveActivity({ tenantId: input.tenantId });
-    total += await ingestActivities.ingestGoogleCalendarActivity({ tenantId: input.tenantId });
-    total += await ingestActivities.ingestGoogleContactsActivity({ tenantId: input.tenantId });
-    total += await ingestActivities.ingestGoogleTasksActivity({ tenantId: input.tenantId });
-  }
-  if (wantsGitHub) {
-    total += await ingestActivities.ingestGitHubActivity({ tenantId: input.tenantId });
-  }
-  if (wantsNotion) {
-    total += await ingestActivities.ingestNotionActivity({ tenantId: input.tenantId });
-  }
+  const childResults = await Promise.all(
+    providers.map((provider) =>
+      executeChild(ingestProviderData, {
+        workflowId: `ingest-${input.tenantId}-${provider}-${Date.now()}`,
+        args: [{ tenantId: input.tenantId, provider }],
+      }),
+    ),
+  );
+
+  const total = childResults.reduce((sum, n) => sum + n, 0);
 
   await ingestActivities.extractEntitiesActivity({
     tenantId: input.tenantId,

@@ -13,6 +13,7 @@ export function useCortexUser() {
         name?: string | null;
         tenantId?: string | null;
         role?: string | null;
+        employeeId?: string | null;
       }
     | undefined;
 
@@ -25,6 +26,7 @@ export function useCortexUser() {
             name: u.name,
             tenantId: u.tenantId,
             role: u.role,
+            employeeId: u.employeeId,
           },
         })
       : null;
@@ -32,6 +34,7 @@ export function useCortexUser() {
   return {
     user,
     role: user?.role ?? null,
+    employeeId: user?.employeeId ?? null,
     projectIds: user?.projectIds ?? [],
     tenantId: user?.tenantId ?? null,
     isLoaded: !isPending,

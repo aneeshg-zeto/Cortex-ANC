@@ -9,11 +9,15 @@ import { authClient } from '@/lib/auth-client';
 type LoginFormProps = {
   githubEnabled?: boolean;
   googleEnabled?: boolean;
+  hrDevEnabled?: boolean;
+  employeeDevEnabled?: boolean;
 };
 
 export default function LoginForm({
   githubEnabled = false,
   googleEnabled = false,
+  hrDevEnabled = false,
+  employeeDevEnabled = false,
 }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,6 +60,40 @@ export default function LoginForm({
     } catch {
       setError('Authentication failed');
     } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleHrDevSignIn() {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/hr-dev', { method: 'POST', credentials: 'include' });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? 'HR sign-in failed');
+      }
+      router.push('/hr');
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'HR sign-in failed');
+      setLoading(false);
+    }
+  }
+
+  async function handleEmployeeDevSignIn() {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/dev-employee', { method: 'POST', credentials: 'include' });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? 'Employee sign-in failed');
+      }
+      router.push('/employee/dashboard');
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Employee sign-in failed');
       setLoading(false);
     }
   }
@@ -186,6 +224,40 @@ export default function LoginForm({
                 Continue with Google
               </button>
             )}
+          </>
+        )}
+
+        {(hrDevEnabled || employeeDevEnabled) && mode === 'signin' && (
+          <>
+            <div className="my-6 flex items-center gap-3">
+              <div className="h-px flex-1 bg-zinc-800" />
+              <span className="text-xs text-zinc-600">dev</span>
+              <div className="h-px flex-1 bg-zinc-800" />
+            </div>
+            {hrDevEnabled && (
+              <button
+                type="button"
+                onClick={handleHrDevSignIn}
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#a78bfa]/40 bg-[#a78bfa]/10 px-4 py-3 text-sm font-medium text-[#a78bfa] transition-colors hover:bg-[#a78bfa]/20 disabled:opacity-50"
+              >
+                Sign in as HR
+              </button>
+            )}
+            {employeeDevEnabled && (
+              <button
+                type="button"
+                onClick={handleEmployeeDevSignIn}
+                disabled={loading}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl border border-[#38bdf8]/40 bg-[#38bdf8]/10 px-4 py-3 text-sm font-medium text-[#38bdf8] transition-colors hover:bg-[#38bdf8]/20 disabled:opacity-50${hrDevEnabled ? ' mt-3' : ''}`}
+              >
+                Sign in as Employee
+              </button>
+            )}
+            <p className="mt-2 text-center text-[10px] text-zinc-600">
+              Dev bypass — set <code className="text-zinc-500">HR_DEV_BYPASS</code> /{' '}
+              <code className="text-zinc-500">EMPLOYEE_DEV_BYPASS=true</code> in .env
+            </p>
           </>
         )}
 

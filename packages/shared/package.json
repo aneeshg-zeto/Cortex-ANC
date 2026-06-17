@@ -33,6 +33,10 @@
     "./auth/oauth": {
       "types": "./dist/auth/oauth.d.ts",
       "import": "./dist/auth/oauth.js"
+    },
+    "./hr/upload": {
+      "types": "./dist/hr/employee-upload.d.ts",
+      "import": "./dist/hr/employee-upload.js"
     }
   },
   "scripts": {
@@ -46,7 +50,8 @@
     "kafkajs": "^2.2.4",
     "neo4j-driver": "^5.28.1",
     "pg": "^8.21.0",
-    "pino": "^9.6.0"
+    "pino": "^9.6.0",
+    "redis": "^4.7.0"
   },
   "devDependencies": {
     "@types/node": "^20",

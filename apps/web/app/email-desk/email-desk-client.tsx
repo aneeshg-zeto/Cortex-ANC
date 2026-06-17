@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Mail, Reply, Send } from 'lucide-react';
-import { Spinner, type SourceCitationProps } from '@cortex/ui';
+import { type SourceCitationProps } from '@cortex/ui';
 
 import { AppShell, ProjectBadge } from '@/components/app-shell';
+import { GradientDivider, Skeleton, SkeletonTable } from '@/components/design-system';
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
 type ThreadSummary = {
@@ -52,25 +53,28 @@ export function EmailDeskPage() {
   const [sending, setSending] = useState(false);
   const [sendOk, setSendOk] = useState(false);
 
-  const loadInbox = useCallback(async () => {
-    setLoadingInbox(true);
-    setInboxError('');
-    try {
-      const res = await fetch('/api/email/inbox');
-      const data = (await res.json()) as ThreadSummary[] & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? 'Failed to load inbox');
-      setThreads(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setInboxError(e instanceof Error ? e.message : 'Failed to load inbox');
-      setThreads([]);
-    } finally {
-      setLoadingInbox(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadInbox();
-  }, [loadInbox]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch('/api/email/inbox');
+        const data = (await res.json()) as ThreadSummary[] & { error?: string };
+        if (cancelled) return;
+        if (!res.ok) throw new Error(data.error ?? 'Failed to load inbox');
+        setThreads(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if (!cancelled) {
+          setInboxError(e instanceof Error ? e.message : 'Failed to load inbox');
+          setThreads([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingInbox(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function selectThread(threadId: string) {
     setSelectedId(threadId);
@@ -152,14 +156,23 @@ export function EmailDeskPage() {
       badge={<ProjectBadge tenantId={tenantId} />}
     >
       <div className="flex h-full flex-col lg:flex-row">
-        <div className="flex h-64 shrink-0 flex-col border-b border-[#2a2a2a] bg-[#0f0f0f] lg:h-full lg:w-96 lg:border-b-0 lg:border-r">
-          <div className="border-b border-[#2a2a2a] px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wider text-zinc-600">Inbox</p>
+        <div className="shell-sidebar flex h-64 shrink-0 flex-col lg:h-full lg:w-96 lg:border-b-0 lg:border-r">
+          <div className="px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Inbox
+            </p>
           </div>
+          <GradientDivider />
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
             {loadingInbox && (
-              <div className="flex items-center gap-2 p-4 text-sm text-zinc-500">
-                <Spinner /> Loading…
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="glass-card space-y-2 p-3">
+                    <Skeleton className="h-3 w-3/4" />
+                    <Skeleton className="h-2 w-full" />
+                    <Skeleton className="h-2 w-5/6" />
+                  </div>
+                ))}
               </div>
             )}
             {inboxError && (
@@ -168,7 +181,7 @@ export function EmailDeskPage() {
               </p>
             )}
             {!loadingInbox && !inboxError && threads.length === 0 && (
-              <p className="p-4 text-sm text-zinc-500">No threads found.</p>
+              <p className="body-muted p-4">No threads found.</p>
             )}
             <ul className="space-y-2">
               {threads.map((t) => (
@@ -176,23 +189,23 @@ export function EmailDeskPage() {
                   <button
                     type="button"
                     onClick={() => selectThread(t.threadId)}
-                    className={`w-full border p-3 text-left transition-colors ${
-                      selectedId === t.threadId
-                        ? 'border-[#14b8a6]/40 bg-[#14b8a6]/10'
-                        : 'border-[#2a2a2a] bg-[#1a1a1a] hover:border-[#3a3a3a]'
+                    className={`glass-card-interactive w-full p-3 text-left transition-all duration-200 ${
+                      selectedId === t.threadId ? 'border-teal-500/40 bg-teal-500/10' : ''
                     }`}
                   >
                     <div className="flex items-start gap-2">
-                      {t.unread && (
-                        <span className="mt-1.5 size-2 shrink-0 rounded-full bg-[#14b8a6]" />
-                      )}
+                      {t.unread && <span className="status-dot-live mt-1.5 size-2 shrink-0" />}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-white">
+                        <p className="truncate text-sm font-medium text-foreground">
                           {t.from.replace(/<.*>/, '').trim() || t.from}
                         </p>
-                        <p className="truncate text-xs text-zinc-300">{t.subject}</p>
-                        <p className="mt-1 line-clamp-2 text-[11px] text-zinc-500">{t.snippet}</p>
-                        <p className="mt-1 text-[10px] text-zinc-600">{formatDate(t.date)}</p>
+                        <p className="truncate text-xs text-muted-foreground">{t.subject}</p>
+                        <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground/80">
+                          {t.snippet}
+                        </p>
+                        <p className="mt-1 text-[10px] text-muted-foreground/60">
+                          {formatDate(t.date)}
+                        </p>
                       </div>
                     </div>
                   </button>
@@ -202,28 +215,28 @@ export function EmailDeskPage() {
           </div>
         </div>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-[#0a0a0a]">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
           {!selectedId && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-zinc-500">
-              <Mail className="size-10 text-zinc-700" />
-              <p className="text-sm">Select an email to read</p>
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
+              <Mail className="size-10 opacity-40" />
+              <p className="body-muted">Select an email to read</p>
             </div>
           )}
 
           {selectedId && loadingThread && (
-            <div className="flex flex-1 items-center justify-center gap-2 text-zinc-500">
-              <Spinner /> Loading email…
+            <div className="flex flex-1 flex-col gap-4 p-6">
+              <SkeletonTable rows={4} />
             </div>
           )}
 
           {thread && !loadingThread && (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="shrink-0 border-b border-[#2a2a2a] bg-[#0f0f0f] px-6 py-4">
+              <div className="shell-frosted shrink-0 px-6 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <p className="text-lg font-medium text-white">{thread.subject}</p>
-                    <p className="mt-1 text-sm text-zinc-500">{thread.from}</p>
-                    <p className="text-xs text-zinc-600">{formatDate(thread.date)}</p>
+                    <p className="card-title text-lg">{thread.subject}</p>
+                    <p className="body-muted mt-1">{thread.from}</p>
+                    <p className="text-xs text-muted-foreground/70">{formatDate(thread.date)}</p>
                   </div>
                   <button
                     type="button"
@@ -237,13 +250,15 @@ export function EmailDeskPage() {
                 </div>
 
                 {(drafting || draft) && (
-                  <div className="mt-4 border border-[#14b8a6]/20 bg-[#0a1a18] p-4">
-                    <p className="text-xs font-medium uppercase tracking-wider text-[#14b8a6]">
+                  <div className="glass-card mt-4 border-teal-500/20 p-4 md:p-6">
+                    <p className="text-xs font-medium uppercase tracking-wider text-primary">
                       Your reply
                     </p>
                     {drafting ? (
-                      <div className="mt-3 flex items-center gap-2 text-sm text-zinc-400">
-                        <Spinner /> Generating draft…
+                      <div className="mt-3 space-y-2">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-5/6" />
+                        <Skeleton className="h-3 w-4/6" />
                       </div>
                     ) : (
                       <>
@@ -251,7 +266,7 @@ export function EmailDeskPage() {
                           value={draft}
                           onChange={(e) => setDraft(e.target.value)}
                           rows={6}
-                          className="mt-3 w-full resize-y border border-[#2a2a2a] bg-[#111] p-3 text-sm text-zinc-200 outline-none focus:border-[#14b8a6]/50"
+                          className="input-dark mt-3 resize-y text-sm"
                         />
                         <div className="mt-3 flex items-center gap-3">
                           <button
@@ -277,11 +292,11 @@ export function EmailDeskPage() {
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                <div className="dark-card p-5">
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-600">
+                <div className="glass-card p-5 md:p-6">
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Message
                   </p>
-                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-zinc-300">
+                  <pre className="body-muted whitespace-pre-wrap font-sans">
                     {thread.body || '(empty body)'}
                   </pre>
                 </div>

@@ -9,7 +9,7 @@ function hashToken(token: string): number {
   return hash;
 }
 
-/** Deterministic fallback when no embedding API is configured (demo / Groq-only mode). */
+/** Deterministic fallback when no embedding API is configured. */
 export function fallbackEmbedText(text: string): number[] {
   const vector = new Array<number>(EMBEDDING_DIMENSION).fill(0);
   const tokens = text.toLowerCase().split(/\W+/).filter(Boolean);
@@ -24,12 +24,43 @@ export function fallbackEmbedText(text: string): number[] {
   return vector.map((v) => v / magnitude);
 }
 
-/** Embeddings — hash fallback only (Ollama/LiteLLM embed path disabled for demo). */
-export async function embedText(text: string, _model?: string): Promise<number[]> {
-  // Re-enable when Ollama returns:
-  // - LiteLLM POST /v1/embeddings model cortex-ollama
-  // - Ollama POST /api/embeddings nomic-embed-text
-  return fallbackEmbedText(text);
+function litellmBase(): string {
+  return process.env.LITELLM_URL ?? 'http://localhost:4000';
+}
+
+function litellmKey(): string {
+  return process.env.LITELLM_MASTER_KEY ?? 'cortex-local-dev';
+}
+
+/** Batch embeddings via LiteLLM (Groq/Gemini embed model). Falls back to hash embed per text. */
+export async function embedBatch(texts: string[], model?: string): Promise<number[][]> {
+  if (!texts.length) return [];
+  const embedModel = model ?? process.env.LITELLM_EMBED_MODEL ?? 'cortex-embed';
+
+  try {
+    const res = await fetch(`${litellmBase()}/v1/embeddings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${litellmKey()}`,
+      },
+      body: JSON.stringify({ model: embedModel, input: texts }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = (await res.json()) as {
+      data: Array<{ index: number; embedding: number[] }>;
+    };
+    const sorted = [...data.data].sort((a, b) => a.index - b.index);
+    return sorted.map((row) => row.embedding);
+  } catch {
+    return texts.map(fallbackEmbedText);
+  }
+}
+
+export async function embedText(text: string, model?: string): Promise<number[]> {
+  const [embedding] = await embedBatch([text], model);
+  return embedding ?? fallbackEmbedText(text);
 }
 
 export const EMBEDDING_SIZE = EMBEDDING_DIMENSION;

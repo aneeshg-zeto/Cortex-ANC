@@ -13,6 +13,12 @@ export type IngestInitialDataInput = {
   providers: string[];
 };
 
+export type IngestProviderInput = {
+  tenantId: string;
+  provider: string;
+  since?: string;
+};
+
 export type IngestProgress = {
   step: string;
   documentsIndexed: number;

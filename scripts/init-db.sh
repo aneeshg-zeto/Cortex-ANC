@@ -102,6 +102,12 @@ if [ -f scripts/migrations/004_ingestion_progress.sql ]; then
     -f scripts/migrations/004_ingestion_progress.sql
 fi
 
+if [ -f scripts/migrations/005_sync_and_embedding_cache.sql ]; then
+  echo "→ Applying sync & embedding cache migration…"
+  psql "${DATABASE_URL:-postgresql://cortex:cortex@localhost:5434/cortex}" \
+    -f scripts/migrations/005_sync_and_embedding_cache.sql
+fi
+
 if [ -f scripts/migrate-auth.sh ]; then
   bash scripts/migrate-auth.sh || true
 fi

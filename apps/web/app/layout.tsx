@@ -31,12 +31,16 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const themeInitScript = `(function(){try{var t=localStorage.getItem('cortex-theme');if(t==='light')document.documentElement.classList.remove('dark');else document.documentElement.classList.add('dark');}catch(e){}})();`;
+
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${instrumentSerif.variable} ${jetbrains.variable} h-full`}
+      className={`dark ${inter.variable} ${instrumentSerif.variable} ${jetbrains.variable} h-full`}
+      suppressHydrationWarning
     >
-      <body className="flex min-h-full flex-col font-sans">
+      <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

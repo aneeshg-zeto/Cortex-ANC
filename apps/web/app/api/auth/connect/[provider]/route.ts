@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/auth';
 import {
+  buildOAuthConnectUrls,
   connectorHealthProvider,
-  encodeOAuthState,
-  generateAuthUrl,
+  connectorIdFromOAuthProvider,
+  isConnectorComingSoon,
   normalizeOAuthProvider,
 } from '@cortex/shared';
 
@@ -17,18 +18,22 @@ export const GET = withAuth(
       return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 });
     }
 
+    const connectorId = connectorIdFromOAuthProvider(provider);
+    if (isConnectorComingSoon(connectorId)) {
+      return NextResponse.json({ error: `${connectorId} is coming soon` }, { status: 503 });
+    }
+
     const healthProvider = connectorHealthProvider(provider);
     const returnUrl =
       new URL(request.url).searchParams.get('return_url') ??
-      `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/onboarding?success=${encodeURIComponent(healthProvider)}`;
+      `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/connectors?success=${encodeURIComponent(healthProvider)}`;
 
     try {
-      const state = encodeOAuthState({
+      const { authUrl } = buildOAuthConnectUrls({
         tenantId: tenant.tenantId,
         provider,
         returnUrl,
       });
-      const authUrl = generateAuthUrl(provider, state);
       return NextResponse.redirect(authUrl);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'OAuth not configured';
