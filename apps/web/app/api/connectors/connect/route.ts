@@ -2,18 +2,19 @@ import { NextResponse } from 'next/server';
 
 import { auditAction, withAuth } from '@/lib/auth';
 import '@/lib/ensure-env';
+import { startIngestIfAvailable } from '@/lib/ingestion-runtime';
 import {
   CONNECTOR_CATALOG,
   getConnectorById,
   saveConnectedAccount,
   upsertConnectorHealth,
 } from '@cortex/shared';
-import { startIngestInitialDataWorkflow } from '@cortex/shared/temporal/client';
+import { canManageWorkspace } from '@cortex/auth';
 
 /** API-key connectors (Trello: key + token as access/refresh). */
 export const POST = withAuth(
   async (request, { tenant, user }) => {
-    if (user.role !== 'admin') {
+    if (!canManageWorkspace(user.role)) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
@@ -56,7 +57,7 @@ export const POST = withAuth(
       `${tenant.tenantId}-${def.id}`,
     );
 
-    const workflowId = await startIngestInitialDataWorkflow({
+    const workflowId = await startIngestIfAvailable({
       tenantId: tenant.tenantId,
       providers: [def.id],
     });

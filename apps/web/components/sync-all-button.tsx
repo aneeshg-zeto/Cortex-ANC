@@ -7,12 +7,14 @@ import { canManageWorkspace } from '@cortex/auth';
 
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
+const slimDeploy = process.env.NEXT_PUBLIC_SLIM_DEPLOY === 'true';
+
 export function SyncAllButton({ className = '' }: { className?: string }) {
   const { user } = useCortexUser();
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState('');
 
-  const canSync = user ? canManageWorkspace(user.role) : false;
+  const canSync = user && canManageWorkspace(user.role) && !slimDeploy;
 
   if (!canSync) return null;
 

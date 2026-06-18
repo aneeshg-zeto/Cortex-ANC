@@ -35,11 +35,14 @@ docker compose down     # stop containers
 - **Super admin:** `aneeshg@zeto.studio` (Google sign-in) — Panel access and employee approvals.
 - **Local dev only:** HR and Employee shortcuts on the login page when `HR_DEV_BYPASS` / `EMPLOYEE_DEV_BYPASS` are enabled (hidden in production).
 
-## Railway (V1)
+## Railway (V1 slim)
+
+Deploy **only** the web service + Postgres plugin (2 resources). No Kafka, Temporal, Neo4j, or LiteLLM.
 
 ```bash
-# Build & run via Dockerfile; set DATABASE_URL and run postdeploy:
-bun run db:migrate
+# Root directory: cortex-platform (or repo root if standalone)
+# Post-deploy: bun run db:migrate
+# Health: GET /api/health
 ```
 
-Health check: `GET /api/health` → `{ status, db }`. See [.env.example](./.env.example) for required variables.
+Set `RAILWAY_ENV=true`, `NEXT_PUBLIC_SLIM_DEPLOY=true`, `GROQ_API_KEY`, auth vars. Leave `LITELLM_URL` unset for direct Groq. Super admin: `aneeshg@zeto.studio` via Google.

@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
 
-import { withAuth } from '@/lib/auth';
 import { isRailway } from '@/lib/auth-config';
+import { withAuth } from '@/lib/auth';
 import { queryWithTenant } from '@cortex/shared';
 import { countNeo4jNodes } from '@cortex/shared/graph/neo4j-client';
 import { Pool } from 'pg';
@@ -80,7 +80,7 @@ export const GET = withAuth(
       // tables may not exist before migration
     }
 
-    const neo4jNodes = await countNeo4jNodes(tenant.tenantId);
+    const neo4jNodes = isRailway ? 0 : await countNeo4jNodes(tenant.tenantId);
 
     let employeePendingApprovals = 0;
     try {

@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 
 import { auditAction, withAuth } from '@/lib/auth';
 import '@/lib/ensure-env';
-import { spawnIngestResync } from '@/lib/spawn-ingest';
+import { startIngestIfAvailable, INGESTION_SKIPPED_MESSAGE } from '@/lib/ingestion-runtime';
 import { queryWithTenant } from '@cortex/shared';
-import { startIngestInitialDataWorkflow } from '@cortex/shared/temporal/client';
 import { canManageWorkspace } from '@cortex/auth';
 
 const PROVIDER_ALIASES: Record<string, string> = {
@@ -24,20 +23,29 @@ export const POST = withAuth(
     const raw = body.provider ?? 'google-workspace';
     const provider = PROVIDER_ALIASES[raw] ?? raw;
 
-    let workflowId = await startIngestInitialDataWorkflow({
+    let workflowId = await startIngestIfAvailable({
       tenantId: tenant.tenantId,
       providers: [provider],
     });
 
-    let mode: 'temporal' | 'direct' = 'temporal';
+    let mode: 'temporal' | 'direct' | 'skipped' = 'temporal';
 
     if (!workflowId) {
+      const { spawnIngestResync } = await import('@/lib/spawn-ingest');
       const started = spawnIngestResync(tenant.tenantId, provider);
       if (!started) {
-        return NextResponse.json(
-          { error: 'Could not start ingestion. Run: bun run start:all' },
-          { status: 503 },
+        await queryWithTenant(
+          tenant,
+          `UPDATE tenant_onboarding SET status = 'complete', step = 'ready', updated_at = NOW() WHERE tenant_id = $1`,
+          [tenant.tenantId],
         );
+        return NextResponse.json({
+          success: true,
+          workflowId: null,
+          provider,
+          mode: 'skipped',
+          message: INGESTION_SKIPPED_MESSAGE,
+        });
       }
       workflowId = `direct-${provider}-${Date.now()}`;
       mode = 'direct';

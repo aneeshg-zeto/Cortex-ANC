@@ -11,6 +11,8 @@
   "scripts": {
     "dev": "turbo run dev --filter=@cortex/web --filter=@cortex/shared --filter=@cortex/agent-core --filter=@cortex/ui --filter=@cortex/graph-core",
     "build": "turbo run build",
+    "build:web": "turbo run build --filter=@cortex/web",
+    "start:web": "bun run --cwd apps/web start",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",

@@ -1,8 +1,10 @@
+import { isBackgroundIngestionEnabled } from '@cortex/shared';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
-/** Run ingest script in background when Temporal is unavailable. */
+/** Run ingest script in background when Temporal is unavailable (local dev only). */
 export function spawnIngestResync(tenantId: string, provider: string): boolean {
+  if (!isBackgroundIngestionEnabled()) return false;
   const root = path.resolve(process.cwd(), '../..');
   const script = path.join(root, 'services/temporal-worker/scripts/resync-ingest.ts');
   try {

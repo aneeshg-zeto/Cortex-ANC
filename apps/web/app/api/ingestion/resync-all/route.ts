@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 
 import { auditAction, withAuth } from '@/lib/auth';
 import '@/lib/ensure-env';
-import { spawnIngestResyncAll } from '@/lib/spawn-ingest';
-import { listConnectedProviders, queryWithTenant, upsertIngestionProgress } from '@cortex/shared';
-import { startResyncAllWorkflow } from '@cortex/shared/temporal/client';
+import { INGESTION_SKIPPED_MESSAGE, startResyncAllIfAvailable } from '@/lib/ingestion-runtime';
+import {
+  isBackgroundIngestionEnabled,
+  listConnectedProviders,
+  queryWithTenant,
+  upsertIngestionProgress,
+} from '@cortex/shared';
 import { canManageWorkspace } from '@cortex/auth';
 
 export const POST = withAuth(
@@ -18,6 +22,16 @@ export const POST = withAuth(
       return NextResponse.json({ error: 'No connected providers to sync' }, { status: 400 });
     }
 
+    if (!isBackgroundIngestionEnabled()) {
+      return NextResponse.json({
+        success: true,
+        workflowId: null,
+        providers: connected,
+        mode: 'skipped',
+        message: INGESTION_SKIPPED_MESSAGE,
+      });
+    }
+
     const progressKeys = connected.map((p) => (p === 'google' ? 'google-workspace' : p));
     await Promise.all(
       progressKeys.map((provider) =>
@@ -29,19 +43,23 @@ export const POST = withAuth(
       ),
     );
 
-    let workflowId = await startResyncAllWorkflow(tenant.tenantId);
-    let mode: 'temporal' | 'direct' = 'temporal';
+    let workflowId = await startResyncAllIfAvailable(tenant.tenantId);
+    let mode: 'temporal' | 'direct' | 'skipped' = 'temporal';
 
     if (!workflowId) {
+      const { spawnIngestResyncAll } = await import('@/lib/spawn-ingest');
       const started = spawnIngestResyncAll(
         tenant.tenantId,
         connected.map((p) => (p === 'google' ? 'google-workspace' : p)),
       );
       if (!started) {
-        return NextResponse.json(
-          { error: 'Could not start ingestion. Run: bun run start:all' },
-          { status: 503 },
-        );
+        return NextResponse.json({
+          success: true,
+          workflowId: null,
+          providers: connected,
+          mode: 'skipped',
+          message: INGESTION_SKIPPED_MESSAGE,
+        });
       }
       workflowId = `direct-all-${Date.now()}`;
       mode = 'direct';

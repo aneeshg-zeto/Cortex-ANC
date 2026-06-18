@@ -16,6 +16,7 @@ export * from './auth/oauth';
 export * from './auth/connected-accounts';
 export * from './crypto/token-encryption';
 export * from './load-root-env';
+export * from './deploy';
 export * from './ingestion/progress';
 export * from './ingestion/embedding-cache';
 export * from './projects/tenant-projects';

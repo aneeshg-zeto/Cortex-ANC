@@ -28,8 +28,10 @@ function buildMessages(prompt: string, options: LlmOptions): LlmMessage[] {
 }
 
 function litellmBase(): string | null {
-  const url = (process.env.LITELLM_URL ?? 'http://localhost:4000').replace(/\/$/, '');
-  return url || null;
+  if (process.env.RAILWAY_ENV === 'true') return null;
+  const url = process.env.LITELLM_URL?.trim();
+  if (!url) return null;
+  return url.replace(/\/$/, '') || null;
 }
 
 function primaryLiteLLMModel(): string {

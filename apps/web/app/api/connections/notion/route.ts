@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 
 import { auditAction, withAuth } from '@/lib/auth';
 import '@/lib/ensure-env';
-import { spawnIngestResync } from '@/lib/spawn-ingest';
+import { startIngestIfAvailable } from '@/lib/ingestion-runtime';
 import { validateNotionToken } from '@cortex/integration-core/notion';
 import { queryWithTenant, saveConnectedAccount, upsertConnectorHealth } from '@cortex/shared';
-import { startIngestInitialDataWorkflow } from '@cortex/shared/temporal/client';
+import { canManageWorkspace } from '@cortex/auth';
 
 export const POST = withAuth(
   async (_request, { user, tenant }) => {
-    if (user.role !== 'admin') {
+    if (!canManageWorkspace(user.role)) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
@@ -34,20 +34,24 @@ export const POST = withAuth(
     const connectionId = `${tenant.tenantId}-notion`;
     await upsertConnectorHealth(tenant.tenantId, 'notion', 'connected', connectionId);
 
-    const workflowId = await startIngestInitialDataWorkflow({
+    const workflowId = await startIngestIfAvailable({
       tenantId: tenant.tenantId,
       providers: ['notion'],
     });
 
-    if (!workflowId) {
-      spawnIngestResync(tenant.tenantId, 'notion');
+    if (workflowId) {
+      await queryWithTenant(
+        tenant,
+        `UPDATE tenant_onboarding SET status = 'running', step = 'ingesting', workflow_id = $2, updated_at = NOW() WHERE tenant_id = $1`,
+        [tenant.tenantId, workflowId],
+      );
+    } else {
+      await queryWithTenant(
+        tenant,
+        `UPDATE tenant_onboarding SET status = 'complete', step = 'ready', updated_at = NOW() WHERE tenant_id = $1`,
+        [tenant.tenantId],
+      );
     }
-
-    await queryWithTenant(
-      tenant,
-      `UPDATE tenant_onboarding SET status = 'running', step = 'ingesting', workflow_id = COALESCE($2, workflow_id), updated_at = NOW() WHERE tenant_id = $1`,
-      [tenant.tenantId, workflowId ?? `direct-notion-${Date.now()}`],
-    );
 
     await auditAction(tenant, 'connector.connected', {
       metadata: { provider: 'notion', workspace, workflowId },
@@ -55,7 +59,7 @@ export const POST = withAuth(
 
     return NextResponse.json({
       success: true,
-      message: 'Notion connected. Ingestion started.',
+      message: workflowId ? 'Notion connected. Ingestion started.' : 'Notion connected.',
       workspace,
     });
   },
