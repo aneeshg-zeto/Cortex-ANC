@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Inter, Instrument_Serif, JetBrains_Mono } from 'next/font/google';
 
 import { AuthProvider } from '@/components/auth-provider';
@@ -40,7 +41,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <Script id="cortex-theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
