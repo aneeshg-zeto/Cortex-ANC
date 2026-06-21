@@ -1,4 +1,4 @@
-export type CortexRole = 'super_admin' | 'admin' | 'ceo' | 'client' | 'hr' | 'employee' | 'member';
+export type CortexRole = 'super_admin' | 'ceo' | 'client' | 'hr' | 'employee' | 'member';
 
 export type TenantContext = {
   tenantId: string;

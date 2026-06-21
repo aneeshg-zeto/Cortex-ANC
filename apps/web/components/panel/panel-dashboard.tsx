@@ -22,7 +22,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { ClientProjectsPanel } from '@/components/panel/github-scope-panel';
+import { WorkspacesOverviewPanel } from '@/components/panel/workspaces-overview-panel';
 import { GradientDivider, PanelDashboardSkeleton, StatusDot } from '@/components/design-system';
+import { useCortexUser } from '@/hooks/use-cortex-user';
+import { canManageWorkspace, canReviewApprovals } from '@cortex/auth';
 
 type Stats = {
   connectors: number;
@@ -456,6 +459,9 @@ export function PanelDashboard({
   initialTab?: Tab;
   view?: 'overview' | 'admin';
 }) {
+  const { user } = useCortexUser();
+  const canManage = user ? canManageWorkspace(user.role) : false;
+  const canReview = user ? canReviewApprovals(user.role) : false;
   const [stats, setStats] = useState<Stats | null>(null);
   const [users, setUsers] = useState<PanelUser[]>([]);
   const [graph, setGraph] = useState<{
@@ -600,38 +606,41 @@ export function PanelDashboard({
         </div>
         {view === 'overview' && (
           <div className="grid gap-2 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <ClientProjectsPanel compact />
+            <div className="space-y-2 lg:col-span-2">
+              <WorkspacesOverviewPanel />
+              {canManage ? <ClientProjectsPanel compact /> : null}
             </div>
             <div className="space-y-2">
-              <div className="panel-surface">
-                <div className="flex items-center gap-2 px-3 py-2">
-                  <Pencil className="size-3 text-primary" />
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-                    Workspace
-                  </p>
-                </div>
-                <GradientDivider />
-                <div className="p-2.5">
-                  <input
-                    value={workspaceDraft}
-                    onChange={(e) => setWorkspaceDraft(e.target.value)}
-                    className="input-dark w-full rounded-lg px-2.5 py-1.5 text-xs"
-                    placeholder="Workspace name"
-                  />
-                  <div className="mt-1.5 flex items-center justify-between gap-2">
-                    <p className="truncate text-[10px] text-muted-foreground">{workspaceName}</p>
-                    <button
-                      type="button"
-                      disabled={savingWorkspace || workspaceDraft.trim().length === 0}
-                      onClick={saveWorkspaceName}
-                      className="btn-primary shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold disabled:opacity-40"
-                    >
-                      {savingWorkspace ? '…' : 'Save'}
-                    </button>
+              {canManage ? (
+                <div className="panel-surface">
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <Pencil className="size-3 text-primary" />
+                    <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+                      Workspace
+                    </p>
+                  </div>
+                  <GradientDivider />
+                  <div className="p-2.5">
+                    <input
+                      value={workspaceDraft}
+                      onChange={(e) => setWorkspaceDraft(e.target.value)}
+                      className="input-dark w-full rounded-lg px-2.5 py-1.5 text-xs"
+                      placeholder="Workspace name"
+                    />
+                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                      <p className="truncate text-[10px] text-muted-foreground">{workspaceName}</p>
+                      <button
+                        type="button"
+                        disabled={savingWorkspace || workspaceDraft.trim().length === 0}
+                        onClick={saveWorkspaceName}
+                        className="btn-primary shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold disabled:opacity-40"
+                      >
+                        {savingWorkspace ? '…' : 'Save'}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : null}
               <div className="panel-surface">
                 <div className="flex items-center gap-2 border-b border-[#1f1f1f]/80 px-3 py-2">
                   <Activity className="size-3 text-[#14b8a6]" />
@@ -752,21 +761,21 @@ export function PanelDashboard({
                 accent="blue"
                 sub={`${connectedCount} live`}
               />
-              <PanelStatCard
-                label="Employee approvals"
-                value={stats?.employeePendingApprovals ?? 0}
-                icon={ShieldCheck}
-                accent="amber"
-                href="/panel/approvals"
-                cta="Review queue"
-              />
+              {canReview ? (
+                <PanelStatCard
+                  label="Pending approvals"
+                  value={stats?.employeePendingApprovals ?? 0}
+                  icon={ShieldCheck}
+                  accent="amber"
+                  href="/panel/approvals"
+                  cta="Review queue"
+                />
+              ) : null}
               <PanelStatCard
                 label="Documents"
                 value={stats?.documentCount ?? 0}
                 icon={FileStack}
                 accent="cyan"
-                href="/panel/admin"
-                cta="Full metrics"
               />
             </div>
           </>

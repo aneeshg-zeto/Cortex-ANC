@@ -75,7 +75,7 @@ export async function GET(
     userId: 'oauth-callback',
     email: '',
     name: '',
-    role: 'admin',
+    role: 'ceo',
     projectIds: [],
     isPlatformAdmin: false,
   };

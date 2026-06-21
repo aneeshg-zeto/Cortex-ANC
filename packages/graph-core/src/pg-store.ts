@@ -86,7 +86,16 @@ export class PgVectorStore {
     }
     if (filters?.projectIds?.length) {
       params.push(filters.projectIds);
-      conditions.push(`metadata->>'project_id' = ANY($${params.length}::text[])`);
+      if (filters.includeCompanyScope) {
+        conditions.push(
+          `(metadata->>'scope' = 'company'
+            OR metadata->>'project_id' IS NULL
+            OR metadata->>'project_id' = ''
+            OR metadata->>'project_id' = ANY($${params.length}::text[]))`,
+        );
+      } else {
+        conditions.push(`metadata->>'project_id' = ANY($${params.length}::text[])`);
+      }
     }
     if (filters?.type) {
       params.push(filters.type);

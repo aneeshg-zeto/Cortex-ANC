@@ -14,7 +14,7 @@ function tenantCtx(tenantId: string): TenantContext {
     userId: 'ingestion',
     email: '',
     name: '',
-    role: 'admin',
+    role: 'ceo',
     projectIds: [],
     isPlatformAdmin: false,
   };

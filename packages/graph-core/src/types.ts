@@ -25,6 +25,8 @@ export type SearchFilters = {
   source?: string;
   project?: string;
   projectIds?: string[];
+  /** When true with projectIds, also match tenant-wide docs (HR, roster, workspace catalog). */
+  includeCompanyScope?: boolean;
   type?: string;
   tenantId?: string;
 };

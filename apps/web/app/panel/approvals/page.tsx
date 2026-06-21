@@ -1,6 +1,6 @@
 'use client';
 
-import { canAccessPlatformAdmin } from '@cortex/auth';
+import { canReviewApprovals } from '@cortex/auth';
 import Link from 'next/link';
 
 import { PanelApprovalsSection } from '@/components/panel/panel-approvals-section';
@@ -17,10 +17,10 @@ export default function PanelApprovalsPage() {
     );
   }
 
-  if (!user || !canAccessPlatformAdmin(user.role)) {
+  if (!user || !canReviewApprovals(user.role)) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-zinc-400">
-        <p>Platform admin access required.</p>
+        <p>CEO or client access required to review approvals.</p>
         <Link href="/panel" className="text-sm text-[#14b8a6] hover:underline">
           Back to Panel overview
         </Link>

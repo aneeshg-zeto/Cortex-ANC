@@ -1,17 +1,14 @@
 'use client';
 
-import { isExecutivePasskey, isSuperAdminPasskey } from '@cortex/auth';
+import { isExecutivePasskey, type ExecutiveRolePick } from '@cortex/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { authClient } from '@/lib/auth-client';
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
-type ExecutivePick = 'ceo' | 'admin' | 'client';
-
-const EXECUTIVE_OPTIONS: { value: ExecutivePick; label: string }[] = [
+const EXECUTIVE_OPTIONS: { value: ExecutiveRolePick; label: string }[] = [
   { value: 'ceo', label: 'CEO' },
-  { value: 'admin', label: 'Admin' },
   { value: 'client', label: 'Client' },
 ];
 
@@ -20,7 +17,7 @@ export default function RoleContinueClient() {
   const searchParams = useSearchParams();
   const { user, isLoaded } = useCortexUser();
   const [code, setCode] = useState('');
-  const [executivePick, setExecutivePick] = useState<ExecutivePick>('ceo');
+  const [executivePick, setExecutivePick] = useState<ExecutiveRolePick>('ceo');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -83,11 +80,10 @@ export default function RoleContinueClient() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4">
       <div className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-950 p-8 shadow-xl">
-        <h1 className="text-xl font-semibold text-white">Enter your role code</h1>
+        <h1 className="text-xl font-semibold text-white">Enter your company code</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Signed in as <span className="text-zinc-300">{user.email}</span>. Enter the code your team
-          shared — e.g. <span className="text-zinc-300">Superadmin</span> for platform admin, then
-          connect Google/GitHub in onboarding.
+          Signed in as <span className="text-zinc-300">{user.email}</span>. Enter the company code
+          your team shared to continue.
         </p>
 
         {employeeMissing ? (
@@ -100,7 +96,7 @@ export default function RoleContinueClient() {
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label htmlFor="role-code" className="block text-sm font-medium text-zinc-300">
-              Role code
+              Company code
             </label>
             <input
               id="role-code"
@@ -108,7 +104,7 @@ export default function RoleContinueClient() {
               autoComplete="off"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Superadmin, Zeto, Zetohr…"
+              placeholder="Company code"
               className="mt-1.5 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-white placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
               required
             />
@@ -116,8 +112,8 @@ export default function RoleContinueClient() {
 
           {showExecutivePick ? (
             <div>
-              <p className="mb-2 text-sm font-medium text-zinc-300">Executive access</p>
-              <div className="grid grid-cols-3 gap-2">
+              <p className="mb-2 text-sm font-medium text-zinc-300">Your role</p>
+              <div className="grid grid-cols-2 gap-2">
                 {EXECUTIVE_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -134,12 +130,6 @@ export default function RoleContinueClient() {
                 ))}
               </div>
             </div>
-          ) : null}
-
-          {isSuperAdminPasskey(code) ? (
-            <p className="text-xs text-zinc-500">
-              Platform admin — you&apos;ll connect integrations in onboarding next.
-            </p>
           ) : null}
 
           {error ? <p className="text-sm text-red-400">{error}</p> : null}

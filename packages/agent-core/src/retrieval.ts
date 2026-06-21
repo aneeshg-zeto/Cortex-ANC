@@ -25,7 +25,7 @@ export function toCitations(results: SearchResult[]): SourceCitation[] {
 export async function retrieveContext(
   query: string,
   topK = 5,
-  options?: { tenantId?: string; projectIds?: string[] },
+  options?: { tenantId?: string; projectIds?: string[]; includeCompanyScope?: boolean },
 ): Promise<{
   context: string;
   sources: SourceCitation[];
@@ -33,6 +33,7 @@ export async function retrieveContext(
   const filters = {
     ...(options?.tenantId ? { tenantId: options.tenantId } : {}),
     ...(options?.projectIds?.length ? { projectIds: options.projectIds } : {}),
+    ...(options?.includeCompanyScope ? { includeCompanyScope: true } : {}),
   };
   const results = await searchSimilar(
     query,

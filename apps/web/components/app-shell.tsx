@@ -64,6 +64,8 @@ export function AppShell({
               const active =
                 pathname === href ||
                 (href === '/panel' ? pathname === '/panel' : pathname.startsWith(`${href}/`));
+              const navLabel =
+                href === '/executive-desk' && user?.role === 'client' ? 'Client Desk' : label;
               return (
                 <Link
                   key={href}
@@ -75,7 +77,7 @@ export function AppShell({
                   }`}
                 >
                   <Icon className="size-4" />
-                  {label}
+                  {navLabel}
                 </Link>
               );
             })}

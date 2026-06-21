@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { Mail, Reply, Send } from 'lucide-react';
 import { type SourceCitationProps } from '@cortex/ui';
 
-import { AppShell, ProjectBadge } from '@/components/app-shell';
+import { AppShell } from '@/components/app-shell';
 import { GradientDivider, Skeleton, SkeletonTable } from '@/components/design-system';
-import { useCortexUser } from '@/hooks/use-cortex-user';
+import { WorkspaceSwitcher } from '@/components/workspace-switcher';
 
 type ThreadSummary = {
   threadId: string;
@@ -40,7 +40,6 @@ function formatDate(raw: string): string {
 }
 
 export function EmailDeskPage() {
-  const { tenantId } = useCortexUser();
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadDetail | null>(null);
@@ -153,7 +152,7 @@ export function EmailDeskPage() {
     <AppShell
       title="Email Desk"
       subtitle="Real Gmail inbox with AI-drafted replies"
-      badge={<ProjectBadge tenantId={tenantId} />}
+      badge={<WorkspaceSwitcher />}
     >
       <div className="flex h-full flex-col lg:flex-row">
         <div className="shell-sidebar flex h-64 shrink-0 flex-col lg:h-full lg:w-96 lg:border-b-0 lg:border-r">

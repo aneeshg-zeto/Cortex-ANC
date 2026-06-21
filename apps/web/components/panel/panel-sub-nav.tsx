@@ -1,24 +1,21 @@
 'use client';
 
-import { canAccessPanel, canAccessPlatformAdmin } from '@cortex/auth';
+import { canAccessPanel, canReviewApprovals } from '@cortex/auth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
-const LINKS: { href: string; label: string; exact?: boolean; superAdminOnly?: boolean }[] = [
+const LINKS: { href: string; label: string; exact?: boolean; reviewOnly?: boolean }[] = [
   { href: '/panel', label: 'Overview', exact: true },
-  { href: '/panel/admin', label: 'Admin', superAdminOnly: true },
-  { href: '/panel/approvals', label: 'Employee Approvals', superAdminOnly: true },
+  { href: '/panel/approvals', label: 'Approvals', reviewOnly: true },
 ];
 
 export function PanelSubNav() {
   const pathname = usePathname();
   const { user } = useCortexUser();
 
-  const links = LINKS.filter(
-    (link) => !link.superAdminOnly || (user && canAccessPlatformAdmin(user.role)),
-  );
+  const links = LINKS.filter((link) => !link.reviewOnly || (user && canReviewApprovals(user.role)));
 
   if (!user || !canAccessPanel(user.role)) return null;
 

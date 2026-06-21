@@ -14,6 +14,7 @@ export type AskQuestionResult = {
 export type AskOptions = {
   tenantId?: string;
   projectIds?: string[];
+  includeCompanyScope?: boolean;
   provider?: LlmProvider;
   history?: Array<{ role: string; content: string }>;
   timezone?: string;

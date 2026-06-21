@@ -39,7 +39,7 @@ export default function HrEmployeesClient() {
       if (res.ok) {
         const body = (await res.json()) as { pending?: boolean; warning?: string };
         if (body.pending) {
-          setToast('Employee submitted for super admin approval');
+          setToast('Employee submitted for approval');
           if (body.warning) setWarning(body.warning);
         }
       }
@@ -73,7 +73,7 @@ export default function HrEmployeesClient() {
         >
           <h2 className="text-sm font-medium text-white">Add employee manually</h2>
           <p className="text-xs text-zinc-500">
-            New employees are sent to the super admin for approval before they appear in the roster.
+            New employees are sent to the CEO or a client approver before they appear in the roster.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <input
@@ -139,7 +139,7 @@ export default function HrEmployeesClient() {
                       <p className="font-medium text-white">{a.employeeData.fullName}</p>
                       <p className="text-xs text-zinc-500">{a.employeeData.email}</p>
                     </td>
-                    <td className="px-4 py-3 text-xs text-amber-200">Awaiting super admin</td>
+                    <td className="px-4 py-3 text-xs text-amber-200">Awaiting approval</td>
                   </tr>
                 ))}
               </tbody>

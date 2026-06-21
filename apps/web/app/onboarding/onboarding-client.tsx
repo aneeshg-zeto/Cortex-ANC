@@ -232,9 +232,7 @@ export default function OnboardingClient() {
   if (!canOnboard) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 text-center text-white">
-        <p className="text-zinc-400">
-          Only workspace admins and CEOs can connect tools during onboarding.
-        </p>
+        <p className="text-zinc-400">Only CEOs can connect tools during onboarding.</p>
         <Link href="/auth/continue" className="text-[#14b8a6] hover:underline">
           Enter your role code →
         </Link>

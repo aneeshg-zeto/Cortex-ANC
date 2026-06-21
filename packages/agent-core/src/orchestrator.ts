@@ -7,6 +7,7 @@ export type OrchestratorResult = BrainResult;
 export type OrchestratorOptions = {
   tenantId?: string;
   projectIds?: string[];
+  includeCompanyScope?: boolean;
   provider?: LlmProvider;
   history?: Array<{ role: string; content: string }>;
   timezone?: string;

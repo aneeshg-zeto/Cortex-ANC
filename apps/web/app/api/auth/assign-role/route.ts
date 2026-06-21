@@ -32,7 +32,7 @@ export const POST = withAuth(async (request, { user, tenant }) => {
       {
         error: body.executivePick
           ? 'Invalid role code'
-          : 'Invalid role code or pick CEO / Admin / Client for the executive code',
+          : 'Invalid role code or pick CEO / Client for the executive code',
         needsExecutivePick: !body.executivePick,
       },
       { status: 401 },

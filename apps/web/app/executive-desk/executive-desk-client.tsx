@@ -12,8 +12,10 @@ import {
   type SourceCitationProps,
 } from '@cortex/ui';
 
-import { AppShell, ProjectBadge } from '@/components/app-shell';
+import { AppShell } from '@/components/app-shell';
 import { SyncAllButton } from '@/components/sync-all-button';
+import { WorkspaceSwitcher } from '@/components/workspace-switcher';
+import { useActiveWorkspace } from '@/hooks/use-active-workspace';
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
 type DeskMessage = {
@@ -24,7 +26,8 @@ type DeskMessage = {
 };
 
 export function ExecutiveDeskPage() {
-  const { user, tenantId } = useCortexUser();
+  const { user } = useCortexUser();
+  const { effectiveProjectIds } = useActiveWorkspace();
   const [messages, setMessages] = useState<DeskMessage[]>([
     {
       id: 'welcome',
@@ -59,6 +62,7 @@ export function ExecutiveDeskPage() {
           history,
           timezone,
           userName: user?.name?.split(' ')[0],
+          projectIds: effectiveProjectIds,
         }),
       });
       const data = (await response.json()) as {
@@ -92,14 +96,20 @@ export function ExecutiveDeskPage() {
     }
   }
 
+  const deskTitle = user?.role === 'client' ? 'Client Desk' : 'Executive Desk';
+  const deskSubtitle =
+    user?.role === 'client'
+      ? 'Ask about your project — answers scoped to your workspace'
+      : 'Cross-tool intelligence for leadership';
+
   return (
     <AppShell
-      title="Executive Desk"
-      subtitle="Cross-tool intelligence for leadership"
+      title={deskTitle}
+      subtitle={deskSubtitle}
       badge={
         <div className="flex shrink-0 items-center gap-2">
           <SyncAllButton />
-          <ProjectBadge tenantId={tenantId} />
+          <WorkspaceSwitcher />
         </div>
       }
       footer={

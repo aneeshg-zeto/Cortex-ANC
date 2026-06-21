@@ -13,6 +13,7 @@
     "@base-ui/react": "^1.5.0",
     "@cortex/agent-core": "workspace:*",
     "@cortex/auth": "workspace:*",
+    "@cortex/graph-core": "workspace:*",
     "@cortex/integration-core": "workspace:*",
     "@cortex/shared": "workspace:*",
     "@cortex/ui": "workspace:*",

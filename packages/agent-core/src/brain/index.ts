@@ -106,6 +106,7 @@ export async function runBrain(
     skipCache?: boolean;
     tenantId?: string;
     projectIds?: string[];
+    includeCompanyScope?: boolean;
     provider?: LlmProvider;
     history?: Array<{ role: string; content: string }>;
     timezone?: string;
@@ -165,6 +166,7 @@ export async function runBrain(
   const { context, sources, graphContext } = await hybridRetrieveContext(query, 8, {
     tenantId: options?.tenantId,
     projectIds: options?.projectIds,
+    includeCompanyScope: options?.includeCompanyScope,
     provider: options?.provider,
     history: options?.history,
   });

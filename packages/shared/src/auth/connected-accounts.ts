@@ -11,7 +11,7 @@ function tenantCtx(tenantId: string): TenantContext {
     userId: 'connector-oauth',
     email: '',
     name: '',
-    role: 'admin',
+    role: 'ceo',
     projectIds: [],
     isPlatformAdmin: false,
   };

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/auth';
+import { indexHrTenantFromContext } from '@/lib/index-hr-tenant';
 import {
   isOrgLead,
   listTenantProjects,
@@ -55,6 +56,8 @@ export const POST = withAuth(
       slug,
       githubRepos,
     });
+
+    await indexHrTenantFromContext(tenant);
 
     return NextResponse.json({ project });
   },

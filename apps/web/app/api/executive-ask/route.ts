@@ -1,9 +1,11 @@
 import { askQuestion } from '@cortex/agent-core';
+import { isOrgLead } from '@cortex/shared';
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import pg from 'pg';
 
 import { withAuth } from '@/lib/auth';
+import { resolveEffectiveProjectIds } from '@/lib/resolve-project-scope';
 
 const { Pool } = pg;
 
@@ -35,15 +37,21 @@ export const POST = withAuth(
         history?: Array<{ role: string; content: string }>;
         timezone?: string;
         userName?: string;
+        projectIds?: string[];
       };
 
       if (!body.question?.trim()) {
         return NextResponse.json({ error: 'question is required' }, { status: 400 });
       }
 
+      const projectIds = resolveEffectiveProjectIds(user.projectIds, body.projectIds);
+      const includeCompanyScope =
+        isOrgLead(user.role) || user.role === 'hr' || user.role === 'super_admin';
+
       const result = await askQuestion(body.question.trim(), {
         tenantId: user.tenantId,
-        projectIds: user.projectIds,
+        projectIds,
+        includeCompanyScope,
         provider: body.provider,
         history: body.history,
         timezone: body.timezone,

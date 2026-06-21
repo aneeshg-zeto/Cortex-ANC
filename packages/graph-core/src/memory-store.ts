@@ -22,6 +22,11 @@ function matchesFilters(metadata: DocumentMetadata, filters?: SearchFilters): bo
   if (filters.project && metadata.project !== filters.project) return false;
   if (filters.projectIds?.length) {
     const pid = metadata.project_id as string | undefined;
+    if (filters.includeCompanyScope) {
+      if (metadata.scope === 'company') return true;
+      if (!pid) return true;
+      return filters.projectIds.includes(pid);
+    }
     if (!pid || !filters.projectIds.includes(pid)) return false;
   }
   if (filters.type && metadata.type !== filters.type) return false;

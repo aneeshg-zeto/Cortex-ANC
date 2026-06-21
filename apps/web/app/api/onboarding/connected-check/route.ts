@@ -32,7 +32,7 @@ export const GET = withAuth(async (_request, { tenant, user }) => {
     });
   }
 
-  if (user.role === 'ceo' || user.role === 'admin') {
+  if (user.role === 'ceo') {
     const r = await queryWithTenant<{ provider: string; status: string }>(
       tenant,
       `SELECT provider, status FROM connector_health

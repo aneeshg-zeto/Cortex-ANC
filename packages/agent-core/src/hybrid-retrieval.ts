@@ -12,6 +12,7 @@ import { toCitations, type SourceCitation } from './retrieval';
 export type RetrieveOptions = {
   tenantId?: string;
   projectIds?: string[];
+  includeCompanyScope?: boolean;
   provider?: LlmProvider;
   history?: Array<{ role: string; content: string }>;
 };
@@ -93,6 +94,7 @@ export async function hybridRetrieveContext(
   const filters = {
     ...(options?.tenantId ? { tenantId: options.tenantId } : {}),
     ...(options?.projectIds?.length ? { projectIds: options.projectIds } : {}),
+    ...(options?.includeCompanyScope ? { includeCompanyScope: true } : {}),
   };
   const hasFilters = Object.keys(filters).length > 0;
   const qLower = query.toLowerCase();

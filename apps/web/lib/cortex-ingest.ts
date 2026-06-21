@@ -1,6 +1,7 @@
 import { incrementIngestionProgress, type TenantContext } from '@cortex/shared';
 
 import { auditAction } from './auth';
+import { indexHrTenantFromContext } from './index-hr-tenant';
 
 type TrackIngestionInput = {
   provider?: string;
@@ -33,6 +34,9 @@ export async function trackCortexIngestion(
         },
       }),
     ]);
+    if (provider === 'hr') {
+      await indexHrTenantFromContext(tenant);
+    }
   } catch {
     // Do not block user workflows if ingestion telemetry fails.
   }

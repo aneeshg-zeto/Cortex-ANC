@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/auth';
+import { indexHrTenantFromContext } from '@/lib/index-hr-tenant';
 import {
   getGitHubIngestRepos,
   getTenantGitHubScope,
@@ -66,6 +67,7 @@ export const POST = withAuth(
     }
 
     await setTenantGitHubScope(tenant, repos);
+    await indexHrTenantFromContext(tenant);
 
     return NextResponse.json({
       ok: true,

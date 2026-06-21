@@ -16,7 +16,7 @@ type ProjectRow = {
 };
 
 export function isOrgLead(role: string): boolean {
-  return role === 'admin' || role === 'ceo' || role === 'super_admin';
+  return role === 'ceo' || role === 'super_admin';
 }
 
 export async function listTenantProjects(tenant: TenantContext): Promise<TenantProject[]> {
@@ -132,8 +132,99 @@ export function workerTenantContext(tenantId: string): TenantContext {
     userId: 'system',
     email: '',
     name: '',
-    role: 'admin',
+    role: 'ceo',
     projectIds: [],
     isPlatformAdmin: true,
   };
+}
+
+export type TenantClientUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  projectIds: string[];
+};
+
+export async function listTenantClientUsers(tenant: TenantContext): Promise<TenantClientUser[]> {
+  const { Pool } = await import('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const r = await pool.query<{ id: string; email: string; name: string | null }>(
+      `SELECT id, email, name FROM "user"
+       WHERE "tenantId" = $1 AND role = 'client'
+       ORDER BY email`,
+      [tenant.tenantId],
+    );
+    const users = r.rows;
+    if (!users.length) return [];
+
+    const assignments = await pool.query<{ user_id: string; project_id: string }>(
+      `SELECT a.user_id, a.project_id
+       FROM user_project_assignments a
+       JOIN tenant_projects p ON p.id = a.project_id
+       WHERE p.tenant_id = $1`,
+      [tenant.tenantId],
+    );
+    const byUser = new Map<string, string[]>();
+    for (const row of assignments.rows) {
+      const list = byUser.get(row.user_id) ?? [];
+      list.push(row.project_id);
+      byUser.set(row.user_id, list);
+    }
+
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      projectIds: byUser.get(u.id) ?? [],
+    }));
+  } finally {
+    await pool.end();
+  }
+}
+
+export async function assignClientToProject(
+  tenant: TenantContext,
+  userId: string,
+  projectId: string,
+): Promise<void> {
+  const project = await queryWithTenant<{ id: string }>(
+    tenant,
+    `SELECT id FROM tenant_projects WHERE id = $1 AND tenant_id = $2`,
+    [projectId, tenant.tenantId],
+  );
+  if (!project.rows.length) throw new Error('Workspace not found');
+
+  const { Pool } = await import('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const user = await pool.query<{ id: string }>(
+      `SELECT id FROM "user" WHERE id = $1 AND "tenantId" = $2 AND role = 'client'`,
+      [userId, tenant.tenantId],
+    );
+    if (!user.rows.length) throw new Error('Client user not found');
+
+    await pool.query(
+      `INSERT INTO user_project_assignments (user_id, project_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [userId, projectId],
+    );
+  } finally {
+    await pool.end();
+  }
+}
+
+export async function unassignClientFromProject(
+  tenant: TenantContext,
+  userId: string,
+  projectId: string,
+): Promise<void> {
+  await queryWithTenant(
+    tenant,
+    `DELETE FROM user_project_assignments
+     WHERE user_id = $1 AND project_id = $2
+       AND project_id IN (SELECT id FROM tenant_projects WHERE tenant_id = $3)`,
+    [userId, projectId, tenant.tenantId],
+  );
 }

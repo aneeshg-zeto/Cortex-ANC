@@ -58,9 +58,9 @@ export function PanelApprovalsSection() {
       <div className="mx-auto max-w-[1200px] space-y-4">
         <div className="panel-surface">
           <div className="px-4 py-3 md:px-6">
-            <h2 className="card-title text-sm">Pending employee approvals</h2>
+            <h2 className="card-title text-sm">Pending approvals</h2>
             <p className="body-muted mt-1 text-xs">
-              HR-submitted onboarding requests awaiting super admin review.
+              HR-submitted employee requests — CEO or client can approve.
             </p>
           </div>
           <GradientDivider />

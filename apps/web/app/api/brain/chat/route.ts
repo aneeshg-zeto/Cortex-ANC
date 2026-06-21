@@ -1,4 +1,5 @@
 import { askQuestion } from '@cortex/agent-core';
+import { isOrgLead } from '@cortex/shared';
 import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/auth';
@@ -15,9 +16,13 @@ export const POST = withAuth(
         return NextResponse.json({ error: 'prompt is required' }, { status: 400 });
       }
 
+      const includeCompanyScope =
+        isOrgLead(user.role) || user.role === 'hr' || user.role === 'super_admin';
+
       const result = await askQuestion(body.prompt.trim(), {
         tenantId: user.tenantId,
         projectIds: user.projectIds,
+        includeCompanyScope,
         provider: body.provider,
       });
 
