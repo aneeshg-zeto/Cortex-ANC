@@ -172,20 +172,6 @@ export function ConnectorsGallery() {
       return;
     }
     const returnUrl = `${window.location.origin}/connectors/oauth-complete`;
-    if (c.id === 'notion') {
-      setActionId(c.id);
-      try {
-        const res = await fetch('/api/connections/notion', { method: 'POST' });
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok) throw new Error(data.error ?? 'Notion connect failed');
-        refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Notion connect failed');
-      } finally {
-        setActionId(null);
-      }
-      return;
-    }
     const oauth = c.oauthProvider ?? c.id;
     const url = `/api/auth/connect/${encodeURIComponent(oauth === 'google-workspace' ? 'google' : oauth)}?return_url=${encodeURIComponent(returnUrl)}`;
     window.open(url, '_blank', 'noopener,noreferrer');

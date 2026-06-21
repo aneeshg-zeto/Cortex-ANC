@@ -25,7 +25,8 @@ export type ExtendedOAuthProvider =
   | 'zendesk'
   | 'intercom'
   | 'discord'
-  | 'linear';
+  | 'linear'
+  | 'notion';
 
 type OAuthConfig = {
   clientIdEnv: string;
@@ -286,6 +287,16 @@ export const OAUTH_PROVIDER_CONFIG: Record<ExtendedOAuthProvider, OAuthConfig> =
     scopes: ['read'],
     healthProvider: 'linear',
   },
+  notion: {
+    clientIdEnv: 'NOTION_CLIENT_ID',
+    clientSecretEnv: 'NOTION_CLIENT_SECRET',
+    redirectUriEnv: 'NOTION_REDIRECT_URI',
+    authUrl: 'https://api.notion.com/v1/oauth/authorize',
+    tokenUrl: 'https://api.notion.com/v1/oauth/token',
+    scopes: [],
+    extraAuthParams: { owner: 'user' },
+    healthProvider: 'notion',
+  },
 };
 
 const ALIAS: Record<string, ExtendedOAuthProvider> = {
@@ -314,6 +325,7 @@ const ALIAS: Record<string, ExtendedOAuthProvider> = {
   intercom: 'intercom',
   discord: 'discord',
   linear: 'linear',
+  notion: 'notion',
 };
 
 export function normalizeExtendedOAuthProvider(raw: string): ExtendedOAuthProvider | null {
@@ -472,7 +484,7 @@ export async function exchangeExtendedCodeForTokens(
     return { accessToken: data.access_token };
   }
 
-  if (provider === 'figma' || provider === 'zoom') {
+  if (provider === 'figma' || provider === 'zoom' || provider === 'notion') {
     const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
     const res = await fetch(cfg.tokenUrl, {
       method: 'POST',
@@ -491,11 +503,13 @@ export async function exchangeExtendedCodeForTokens(
       access_token: string;
       refresh_token?: string;
       expires_in?: number;
+      workspace_name?: string;
     };
     return {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
+      scope: data.workspace_name ? `workspace:${data.workspace_name}` : undefined,
     };
   }
 
