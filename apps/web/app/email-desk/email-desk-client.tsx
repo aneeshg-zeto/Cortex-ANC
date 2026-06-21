@@ -39,36 +39,11 @@ function formatDate(raw: string): string {
   }
 }
 
-const INBOX_STORAGE_KEY = 'cortex-email-inbox-v2';
-
-function readCachedInbox(): ThreadSummary[] | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = sessionStorage.getItem(INBOX_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { at: number; threads: ThreadSummary[] };
-    if (Date.now() - parsed.at > 60_000) return null;
-    return parsed.threads;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedInbox(threads: ThreadSummary[]): void {
-  if (typeof window === 'undefined') return;
-  try {
-    sessionStorage.setItem(INBOX_STORAGE_KEY, JSON.stringify({ at: Date.now(), threads }));
-  } catch {
-    // ignore quota errors
-  }
-}
-
 export function EmailDeskPage() {
-  const [threads, setThreads] = useState<ThreadSummary[]>(() => readCachedInbox() ?? []);
+  const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadDetail | null>(null);
-  const [loadingInbox, setLoadingInbox] = useState(() => !readCachedInbox()?.length);
-  const [hydratingInbox, setHydratingInbox] = useState(false);
+  const [loadingInbox, setLoadingInbox] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
   const [inboxError, setInboxError] = useState('');
   const [draft, setDraft] = useState('');
@@ -79,36 +54,23 @@ export function EmailDeskPage() {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadFull() {
-      setHydratingInbox(true);
+    void (async () => {
       try {
-        const res = await fetch('/api/email/inbox?limit=30');
+        const res = await fetch('/api/email/inbox?limit=30&refresh=1');
         const data = (await res.json()) as ThreadSummary[] & { error?: string };
         if (cancelled) return;
         if (!res.ok) throw new Error(data.error ?? 'Failed to load inbox');
-        const full = Array.isArray(data) ? data : [];
-        const hasMetadata = full.some((t) => t.from.trim() && t.from !== 'Unknown');
-        if (!hasMetadata) throw new Error('Inbox metadata unavailable');
-        setThreads(full);
-        writeCachedInbox(full);
-      } finally {
-        if (!cancelled) setHydratingInbox(false);
-      }
-    }
-
-    void (async () => {
-      try {
-        await loadFull();
+        setThreads(Array.isArray(data) ? data : []);
+        setInboxError('');
       } catch (e) {
         if (!cancelled) {
           setInboxError(e instanceof Error ? e.message : 'Failed to load inbox');
+          setThreads([]);
         }
       } finally {
         if (!cancelled) setLoadingInbox(false);
       }
     })();
-
     return () => {
       cancelled = true;
     };
@@ -198,17 +160,13 @@ export function EmailDeskPage() {
           <div className="px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Inbox
-              {hydratingInbox && (
-                <span className="ml-2 normal-case tracking-normal text-muted-foreground/60">
-                  Updating…
-                </span>
-              )}
             </p>
           </div>
           <GradientDivider />
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
             {loadingInbox && (
               <div className="space-y-2">
+                <p className="px-1 text-xs text-muted-foreground">Loading inbox from Gmail…</p>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="glass-card space-y-2 p-3">
                     <Skeleton className="h-3 w-3/4" />
@@ -240,20 +198,14 @@ export function EmailDeskPage() {
                       {t.unread && <span className="status-dot-live mt-1.5 size-2 shrink-0" />}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-foreground">
-                          {t.from
-                            ? t.from.replace(/<.*>/, '').trim() || t.from
-                            : hydratingInbox
-                              ? '…'
-                              : 'Unknown sender'}
+                          {t.from.replace(/<.*>/, '').trim() || t.from}
                         </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {t.subject || (hydratingInbox ? 'Loading subject…' : '(no subject)')}
-                        </p>
+                        <p className="truncate text-xs text-muted-foreground">{t.subject}</p>
                         <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground/80">
                           {t.snippet}
                         </p>
                         <p className="mt-1 text-[10px] text-muted-foreground/60">
-                          {t.date ? formatDate(t.date) : hydratingInbox ? '…' : ''}
+                          {formatDate(t.date)}
                         </p>
                       </div>
                     </div>

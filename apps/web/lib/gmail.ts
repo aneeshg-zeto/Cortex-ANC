@@ -19,17 +19,17 @@ export type GmailThreadDetail = {
   messageId: string;
 };
 
-const GMAIL_TIMEOUT_MS = 20_000;
-const INBOX_CACHE_TTL_SEC = 45;
-const FETCH_CONCURRENCY = 15;
+const GMAIL_TIMEOUT_MS = 30_000;
+const INBOX_CACHE_TTL_SEC = 60;
+/** Keep low — Gmail rate-limits burst parallel thread fetches. */
+const FETCH_CONCURRENCY = 5;
 
 function inboxCacheKey(tenantId: string, maxResults: number): string {
-  return `gmail:inbox:v2:${tenantId}:${maxResults}`;
+  return `gmail:inbox:v3:${tenantId}:${maxResults}`;
 }
 
 export function invalidateGmailInboxCache(tenantId: string): void {
   void cacheDelete(inboxCacheKey(tenantId, 30));
-  void cacheDelete(inboxCacheKey(tenantId, 15));
 }
 
 function header(headers: Array<{ name: string; value: string }> | undefined, name: string): string {
@@ -73,26 +73,48 @@ export async function getGmailAccessToken(tenantId: string): Promise<string> {
   return token;
 }
 
-function summaryFromThreadDetail(
-  detail: {
-    id: string;
-    snippet?: string;
-    messages?: Array<{
-      labelIds?: string[];
-      payload?: { headers?: Array<{ name: string; value: string }> };
-    }>;
-  },
+type GmailMessage = {
+  id: string;
+  labelIds?: string[];
+  internalDate?: string;
+  payload?: {
+    headers?: Array<{ name: string; value: string }>;
+    body?: { data?: string };
+    parts?: Array<{ mimeType?: string; body?: { data?: string } }>;
+  };
+};
+
+type GmailThreadPayload = {
+  id: string;
+  snippet?: string;
+  messages?: GmailMessage[];
+};
+
+function summaryFromThread(
+  detail: GmailThreadPayload,
   fallbackSnippet = '',
-): GmailThreadSummary {
+): GmailThreadSummary | null {
   const last = detail.messages?.[detail.messages.length - 1] ?? detail.messages?.[0];
-  const headers = last?.payload?.headers;
+  if (!last) return null;
+
+  const headers = last.payload?.headers;
+  const from = header(headers, 'From');
+  const subject = header(headers, 'Subject');
+  const date = header(headers, 'Date') || last.internalDate;
+
+  if (!from && !subject) return null;
+
   return {
     threadId: detail.id,
     snippet: detail.snippet ?? fallbackSnippet,
-    from: header(headers, 'From') || 'Unknown',
-    subject: header(headers, 'Subject') || '(no subject)',
-    date: header(headers, 'Date') || new Date().toISOString(),
-    unread: (last?.labelIds ?? []).includes('UNREAD'),
+    from: from || 'Unknown sender',
+    subject: subject || '(no subject)',
+    date: date
+      ? /^\d+$/.test(date)
+        ? new Date(Number(date)).toISOString()
+        : date
+      : new Date().toISOString(),
+    unread: (last.labelIds ?? []).includes('UNREAD'),
   };
 }
 
@@ -109,56 +131,12 @@ async function mapInParallel<T, R>(
   return results;
 }
 
-async function fetchThreadMetadata(
-  token: string,
-  threads: Array<{ id: string; snippet?: string }>,
-): Promise<GmailThreadSummary[]> {
-  if (threads.length === 0) return [];
-
-  return mapInParallel(threads, FETCH_CONCURRENCY, async (thread) => {
-    try {
-      const detailRes = await gmailFetch(
-        `https://gmail.googleapis.com/gmail/v1/users/me/threads/${thread.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
-        token,
-      );
-      if (!detailRes.ok) {
-        return {
-          threadId: thread.id,
-          snippet: thread.snippet ?? '',
-          from: 'Unknown',
-          subject: '(no subject)',
-          date: new Date().toISOString(),
-          unread: false,
-        };
-      }
-      const detail = (await detailRes.json()) as {
-        id: string;
-        snippet?: string;
-        messages?: Array<{
-          labelIds?: string[];
-          payload?: { headers?: Array<{ name: string; value: string }> };
-        }>;
-      };
-      return summaryFromThreadDetail(detail, thread.snippet ?? '');
-    } catch {
-      return {
-        threadId: thread.id,
-        snippet: thread.snippet ?? '',
-        from: 'Unknown',
-        subject: '(no subject)',
-        date: new Date().toISOString(),
-        unread: false,
-      };
-    }
-  });
-}
-
 async function fetchThreadList(
   token: string,
   maxResults: number,
 ): Promise<Array<{ id: string; snippet?: string }>> {
   const listRes = await gmailFetch(
-    `https://gmail.googleapis.com/gmail/v1/users/me/threads?maxResults=${maxResults}`,
+    `https://gmail.googleapis.com/gmail/v1/users/me/threads?maxResults=${maxResults}&labelIds=INBOX`,
     token,
   );
   if (!listRes.ok) {
@@ -170,21 +148,30 @@ async function fetchThreadList(
   return list.threads ?? [];
 }
 
-/** One Gmail API call — snippet-only inbox for instant first paint. */
-export async function listGmailThreadsQuick(
-  tenantId: string,
-  maxResults = 30,
+/** format=full — same path as getGmailThread, which reliably returns headers. */
+async function fetchThreadSummaries(
+  token: string,
+  threads: Array<{ id: string; snippet?: string }>,
 ): Promise<GmailThreadSummary[]> {
-  const token = await getGmailAccessToken(tenantId);
-  const threads = await fetchThreadList(token, maxResults);
-  return threads.map((thread) => ({
-    threadId: thread.id,
-    snippet: thread.snippet ?? '',
-    from: '',
-    subject: '',
-    date: '',
-    unread: false,
-  }));
+  const rows = await mapInParallel(threads, FETCH_CONCURRENCY, async (thread) => {
+    try {
+      const detailRes = await gmailFetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/threads/${encodeURIComponent(thread.id)}?format=full`,
+        token,
+      );
+      if (!detailRes.ok) return null;
+      const detail = (await detailRes.json()) as GmailThreadPayload;
+      return summaryFromThread(detail, thread.snippet ?? '');
+    } catch {
+      return null;
+    }
+  });
+
+  return rows.filter((row): row is GmailThreadSummary => row !== null);
+}
+
+function hasRealMetadata(threads: GmailThreadSummary[]): boolean {
+  return threads.some((t) => t.from.trim() && t.from !== 'Unknown sender');
 }
 
 export async function listGmailThreads(
@@ -197,7 +184,9 @@ export async function listGmailThreads(
     const cached = await cacheGet(cacheKey);
     if (cached) {
       try {
-        return JSON.parse(cached) as GmailThreadSummary[];
+        const parsed = JSON.parse(cached) as GmailThreadSummary[];
+        if (hasRealMetadata(parsed)) return parsed;
+        await cacheDelete(cacheKey);
       } catch {
         await cacheDelete(cacheKey);
       }
@@ -208,7 +197,10 @@ export async function listGmailThreads(
   const threads = await fetchThreadList(token, maxResults);
   if (threads.length === 0) return [];
 
-  const summaries = await fetchThreadMetadata(token, threads);
+  const summaries = await fetchThreadSummaries(token, threads);
+  if (!hasRealMetadata(summaries)) {
+    throw new Error('Gmail returned threads without sender/subject metadata');
+  }
 
   void cacheSet(cacheKey, JSON.stringify(summaries), INBOX_CACHE_TTL_SEC);
   return summaries;
@@ -220,20 +212,12 @@ export async function getGmailThread(
 ): Promise<GmailThreadDetail> {
   const token = await getGmailAccessToken(tenantId);
   const res = await gmailFetch(
-    `https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}?format=full`,
+    `https://gmail.googleapis.com/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}?format=full`,
     token,
   );
   if (!res.ok) throw new Error(`Gmail thread fetch failed: ${await res.text()}`);
-  const detail = (await res.json()) as {
-    id: string;
-    messages?: Array<{
-      id: string;
-      payload?: {
-        headers?: Array<{ name: string; value: string }>;
-        body?: { data?: string };
-        parts?: Array<{ mimeType?: string; body?: { data?: string } }>;
-      };
-    }>;
+  const detail = (await res.json()) as GmailThreadPayload & {
+    messages?: Array<GmailMessage & { id: string }>;
   };
   const last = detail.messages?.[detail.messages.length - 1] ?? detail.messages?.[0];
   if (!last) throw new Error('Thread has no messages');
