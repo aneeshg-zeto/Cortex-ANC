@@ -1,3 +1,7 @@
+import type { HrEmployeeApproval } from '@cortex/shared';
+
+import { sendGmailEmail } from './gmail';
+
 const PLATFORM_NOTIFY_EMAIL = process.env.PLATFORM_NOTIFY_EMAIL?.trim() || 'aneeshg@zeto.studio';
 
 export async function notifySuperAdminEmployeeApproval(
