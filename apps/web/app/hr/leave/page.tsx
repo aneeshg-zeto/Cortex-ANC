@@ -38,9 +38,9 @@ export default function HrLeavePage() {
       <div className="mx-auto max-w-4xl space-y-6">
         <form
           onSubmit={submitLeave}
-          className="rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 space-y-3"
+          className="rounded-xl border border-border bg-card p-4 space-y-3"
         >
-          <h2 className="text-sm font-medium text-white">New leave request</h2>
+          <h2 className="text-sm font-medium text-foreground">New leave request</h2>
           <select
             className="input-dark w-full text-sm"
             required
@@ -104,17 +104,17 @@ export default function HrLeavePage() {
 
         <div className="space-y-2">
           {(data?.leave ?? []).map((req) => (
-            <div key={req.id} className="rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] p-4">
+            <div key={req.id} className="rounded-xl border border-border bg-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="font-medium text-white">{req.employeeName}</p>
-                  <p className="text-xs text-zinc-500 capitalize">
+                  <p className="font-medium text-foreground">{req.employeeName}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
                     {req.leaveType} · {req.days} day(s)
                   </p>
-                  <p className="text-xs text-zinc-600">
+                  <p className="text-xs text-muted-foreground">
                     {req.startDate} → {req.endDate}
                   </p>
-                  {req.reason && <p className="mt-1 text-sm text-zinc-400">{req.reason}</p>}
+                  {req.reason && <p className="mt-1 text-sm text-muted-foreground">{req.reason}</p>}
                 </div>
                 <div className="flex items-center gap-2">
                   <span
@@ -123,7 +123,7 @@ export default function HrLeavePage() {
                         ? 'bg-[#a78bfa]/10 text-[#a78bfa]'
                         : req.status === 'rejected'
                           ? 'bg-red-500/10 text-red-400'
-                          : 'bg-zinc-500/10 text-zinc-400'
+                          : 'bg-zinc-500/10 text-muted-foreground'
                     }`}
                   >
                     {req.status}

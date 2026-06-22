@@ -23,6 +23,8 @@ const NAV: { href: string; label: string; icon: typeof LayoutDashboard; exact?: 
   { href: '/employee/emergency', label: 'Emergency Notices', icon: AlertTriangle },
 ];
 
+const SHELL_SURFACE = 'border-border bg-card';
+
 export function EmployeeShell({
   title,
   subtitle,
@@ -41,16 +43,18 @@ export function EmployeeShell({
         className="grid min-h-0 flex-1"
         style={{ gridTemplateColumns: '15rem 1fr', gridTemplateRows: '4.25rem 1fr' }}
       >
-        <div className="flex items-center border-b border-r border-[#2a2a2a] bg-[#0f0f0f] px-4">
-          <Link href="/employee/dashboard" className="font-display text-lg text-white">
+        <div className={`flex items-center border-b border-r ${SHELL_SURFACE} px-4`}>
+          <Link href="/employee/dashboard" className="font-display text-lg text-foreground">
             Cortex <span className="text-[#38bdf8]">Employee</span>
           </Link>
         </div>
 
-        <header className="flex items-center justify-between gap-4 border-b border-[#2a2a2a] bg-[#0f0f0f] px-6">
+        <header
+          className={`flex items-center justify-between gap-4 border-b ${SHELL_SURFACE} px-6`}
+        >
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-white">{title}</h1>
-            {subtitle && <p className="text-sm text-zinc-500">{subtitle}</p>}
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -60,7 +64,7 @@ export function EmployeeShell({
           </div>
         </header>
 
-        <aside className="flex min-h-0 flex-col border-r border-[#2a2a2a] bg-[#0f0f0f]">
+        <aside className={`flex min-h-0 flex-col border-r ${SHELL_SURFACE}`}>
           <nav className="flex-1 space-y-1 overflow-y-auto p-2">
             {NAV.map(({ href, label, icon: Icon, exact }) => {
               const active = exact ? pathname === href : pathname.startsWith(href);
@@ -71,7 +75,7 @@ export function EmployeeShell({
                   className={`flex items-center gap-2.5 border-l-2 px-3 py-2.5 text-sm transition-colors duration-200 ${
                     active
                       ? 'border-[#38bdf8] bg-[#38bdf8]/10 font-medium text-[#38bdf8]'
-                      : 'border-transparent text-zinc-400 hover:bg-[#1a1a1a] hover:text-white'
+                      : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
                   <Icon className="size-4 shrink-0" />
@@ -80,8 +84,8 @@ export function EmployeeShell({
               );
             })}
           </nav>
-          <div className="border-t border-[#2a2a2a] p-3">
-            <p className="truncate px-2 text-xs text-zinc-500">{user?.email}</p>
+          <div className="border-t border-border p-3">
+            <p className="truncate px-2 text-xs text-muted-foreground">{user?.email}</p>
             <button
               type="button"
               onClick={() =>
@@ -93,7 +97,7 @@ export function EmployeeShell({
                   },
                 })
               }
-              className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-zinc-500 hover:text-white"
+              className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
               <LogOut className="size-3.5" />
               Sign out

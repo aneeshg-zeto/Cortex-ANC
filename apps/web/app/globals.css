@@ -78,6 +78,10 @@ html.dark {
   }
   html {
     @apply scroll-smooth font-sans antialiased;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground;
@@ -126,7 +130,7 @@ html.dark {
     @apply border-border bg-background/80 backdrop-blur-md;
   }
   html.dark .shell-sidebar {
-    @apply bg-[#0f0f0f]/80;
+    @apply bg-card/80;
   }
 
   .page-title {
@@ -286,19 +290,19 @@ html.dark {
     @apply border-teal-500/30 shadow-teal-500/10;
   }
   .gradient-text {
-    @apply text-white;
+    @apply text-foreground;
   }
   .btn-gradient {
-    @apply inline-flex items-center justify-center bg-[#14b8a6] px-5 py-2.5 text-sm font-medium text-[#0a0a0a] transition-all duration-200 hover:bg-[#0d9488] disabled:opacity-50;
+    @apply inline-flex items-center justify-center bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-all duration-200 hover:bg-primary/90 disabled:opacity-50;
   }
   .btn-outline-glass {
-    @apply inline-flex items-center justify-center border border-[#2a2a2a] bg-[#1a1a1a] px-5 py-2.5 text-sm font-medium text-[#d1d5db] transition-all duration-200 hover:border-[#3a3a3a] hover:text-white disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-all duration-200 hover:bg-muted disabled:opacity-50;
   }
   .paper-card {
-    @apply border border-[#2a2a2a] bg-[#1a1a1a] transition-colors duration-200;
+    @apply rounded-xl border border-border bg-card transition-colors duration-200;
   }
   .paper-card-inset {
-    @apply border border-[#2a2a2a] bg-[#141414];
+    @apply rounded-xl border border-border bg-muted;
   }
   .snap-section {
     scroll-snap-align: start;
@@ -460,7 +464,7 @@ html.dark {
     @apply border border-emerald-500/30 bg-emerald-500/10 text-emerald-400;
   }
   .connector-badge-idle {
-    @apply border border-[#2a2a2a] bg-[#141414] text-zinc-500;
+    @apply border border-border bg-muted text-muted-foreground;
   }
   .connector-badge-sync {
     @apply border border-[#14b8a6]/30 bg-[#14b8a6]/10 text-[#14b8a6];
@@ -500,7 +504,7 @@ html.dark {
       rotate(calc(var(--i) * (-360deg / var(--total))));
   }
   .improvement-node-card {
-    @apply flex flex-col items-center gap-1 border border-[#2a2a2a] bg-[#1a1a1a] p-4 text-center;
+    @apply flex flex-col items-center gap-1 rounded-lg border border-border bg-card p-4 text-center;
   }
   .improvement-core {
     position: absolute;

@@ -1,39 +1,19 @@
 'use client';
 
 import { Moon, Sun } from 'lucide-react';
-import { useState } from 'react';
 
-export const THEME_STORAGE_KEY = 'cortex-theme';
-
-export type ThemeMode = 'light' | 'dark';
-
-export function applyTheme(mode: ThemeMode) {
-  document.documentElement.classList.toggle('dark', mode === 'dark');
-}
-
-export function readStoredTheme(): ThemeMode {
-  if (typeof window === 'undefined') return 'dark';
-  try {
-    return localStorage.getItem(THEME_STORAGE_KEY) === 'light' ? 'light' : 'dark';
-  } catch {
-    return 'dark';
-  }
-}
+import { useThemeOptional } from '@/components/theme-provider';
 
 export function ThemeToggle({ className = '' }: { className?: string }) {
-  const [mode, setMode] = useState<ThemeMode>(() => readStoredTheme());
+  const themeCtx = useThemeOptional();
+  if (!themeCtx) return null;
 
-  function toggle() {
-    const next: ThemeMode = mode === 'dark' ? 'light' : 'dark';
-    setMode(next);
-    localStorage.setItem(THEME_STORAGE_KEY, next);
-    applyTheme(next);
-  }
+  const { theme: mode, toggleTheme } = themeCtx;
 
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={toggleTheme}
       className={`flex size-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground ${className}`}
       title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -42,3 +22,6 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
     </button>
   );
 }
+
+// Re-export for scripts / layout
+export { applyTheme, readStoredTheme, THEME_STORAGE_KEY, type ThemeMode } from '@/lib/theme';

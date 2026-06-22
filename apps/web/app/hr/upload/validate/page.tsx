@@ -6,7 +6,9 @@ export default function HrUploadValidatePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen items-center justify-center text-zinc-500">Loading…</div>
+        <div className="flex h-screen items-center justify-center text-muted-foreground">
+          Loading…
+        </div>
       }
     >
       <HrUploadValidateClient />

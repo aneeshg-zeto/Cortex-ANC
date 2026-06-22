@@ -27,24 +27,24 @@ export function OAuthCompleteClient() {
   }, [success, error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] p-6 text-white">
-      <div className="max-w-sm rounded-2xl border border-[#2a2a2a] bg-[#141414] p-8 text-center">
+    <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+      <div className="max-w-sm rounded-2xl border border-border bg-muted p-8 text-center">
         {error ? (
           <>
             <XCircle className="mx-auto size-10 text-red-400" />
             <h1 className="mt-4 text-lg font-medium">Connection failed</h1>
-            <p className="mt-2 text-sm text-zinc-400">{decodeURIComponent(error)}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{decodeURIComponent(error)}</p>
           </>
         ) : (
           <>
             <CheckCircle2 className="mx-auto size-10 text-emerald-400" />
             <h1 className="mt-4 text-lg font-medium">Connected</h1>
-            <p className="mt-2 text-sm text-zinc-400">
+            <p className="mt-2 text-sm text-muted-foreground">
               {success ? `${success} is linked.` : 'Your account is linked.'}
             </p>
           </>
         )}
-        <p className="mt-6 text-xs text-zinc-500">
+        <p className="mt-6 text-xs text-muted-foreground">
           {closed ? 'Return to the Connectors tab to continue.' : 'Closing this tab…'}
         </p>
       </div>

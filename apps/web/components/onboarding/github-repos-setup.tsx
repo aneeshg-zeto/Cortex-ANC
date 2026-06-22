@@ -1,28 +1,35 @@
 'use client';
 
-import { redirectPathForRole } from '@cortex/auth';
 import { Check, ChevronRight, FolderGit2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useCortexUser } from '@/hooks/use-cortex-user';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 type RepoSummary = { fullName: string; org: string };
 
 export function GitHubReposSetup() {
   const router = useRouter();
-  const { user } = useCortexUser();
   const [reposByOrg, setReposByOrg] = useState<Record<string, RepoSummary[]>>({});
   const [selected, setSelected] = useState<string[]>([]);
   const [workspaceOrgs, setWorkspaceOrgs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [deskPath, setDeskPath] = useState('/executive-desk');
 
   const allRepos = useMemo(() => Object.values(reposByOrg).flat(), [reposByOrg]);
   const orgs = useMemo(() => Object.keys(reposByOrg).sort(), [reposByOrg]);
-  const deskPath = user ? redirectPathForRole(user.role, user.employeeId) : '/executive-desk';
+
+  useEffect(() => {
+    void fetch('/api/onboarding/connected-check')
+      .then((r) => r.json())
+      .then((data: { redirectTo?: string }) => {
+        if (data.redirectTo) setDeskPath(data.redirectTo);
+      })
+      .catch(() => null);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -165,26 +172,29 @@ export function GitHubReposSetup() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] text-zinc-500">
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         <Loader2 className="size-6 animate-spin text-[#14b8a6]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] px-4 py-10 text-white sm:px-6">
+    <div className="relative min-h-screen bg-background px-4 py-10 text-foreground sm:px-6">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="mx-auto max-w-3xl">
         <div className="mb-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-[#14b8a6]">
             Step 2 of 2
           </p>
           <h1 className="mt-3 font-display text-2xl sm:text-3xl">Map GitHub orgs to workspaces</h1>
-          <p className="mt-2 max-w-xl text-sm text-zinc-500">
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             Select entire GitHub organizations as client workspaces, or pick individual repos. CEOs
             see all workspaces at the desk; clients only see workspaces assigned to them.
           </p>
-          <div className="mt-4 h-1 overflow-hidden rounded-full bg-zinc-800">
-            <div className="h-full w-full bg-[#14b8a6]" />
+          <div className="mt-4 h-1 overflow-hidden rounded-full bg-muted">
+            <div className="h-full w-full bg-primary" />
           </div>
         </div>
 
@@ -196,8 +206,10 @@ export function GitHubReposSetup() {
 
         {orgs.length > 1 && (
           <div className="mb-6 rounded-xl border border-[#14b8a6]/30 bg-[#14b8a6]/5 p-4">
-            <p className="text-sm text-zinc-300">Create a workspace for each GitHub organization</p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="text-sm text-foreground/80">
+              Create a workspace for each GitHub organization
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
               Each org becomes a client workspace with all its repos included.
             </p>
             <button
@@ -214,9 +226,9 @@ export function GitHubReposSetup() {
         )}
 
         {!allRepos.length ? (
-          <div className="rounded-xl border border-dashed border-[#2a2a2a] p-10 text-center">
-            <FolderGit2 className="mx-auto size-10 text-zinc-600" />
-            <p className="mt-3 text-zinc-400">No GitHub repositories found.</p>
+          <div className="rounded-xl border border-dashed border-border p-10 text-center">
+            <FolderGit2 className="mx-auto size-10 text-muted-foreground" />
+            <p className="mt-3 text-muted-foreground">No GitHub repositories found.</p>
             <Link
               href="/onboarding"
               className="mt-4 inline-block text-sm text-[#14b8a6] hover:underline"
@@ -231,11 +243,11 @@ export function GitHubReposSetup() {
               const orgSelected = repos.filter((r) => selected.includes(r.fullName)).length;
               const hasWorkspace = workspaceOrgs.has(org);
               return (
-                <section key={org} className="rounded-xl border border-[#2a2a2a] bg-[#0f0f0f]">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2a2a2a] px-4 py-3">
+                <section key={org} className="rounded-xl border border-border bg-card">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-white">{org}</p>
-                      <p className="text-[11px] text-zinc-500">
+                      <p className="text-sm font-medium text-foreground">{org}</p>
+                      <p className="text-[11px] text-muted-foreground">
                         {orgSelected} of {repos.length} repos selected
                         {hasWorkspace ? ' · workspace created' : ''}
                       </p>
@@ -254,7 +266,7 @@ export function GitHubReposSetup() {
                       <button
                         type="button"
                         onClick={() => selectOrg(org)}
-                        className="text-[11px] text-zinc-400 hover:text-white hover:underline"
+                        className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
                       >
                         {orgSelected === repos.length ? 'Clear org' : 'Select all repos'}
                       </button>
@@ -272,7 +284,7 @@ export function GitHubReposSetup() {
                           className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all ${
                             active
                               ? 'border-[#14b8a6]/50 bg-[#14b8a6]/10'
-                              : 'border-[#2a2a2a] bg-[#0a0a0a] hover:border-zinc-600'
+                              : 'border-border bg-background hover:border-zinc-600'
                           }`}
                         >
                           <span
@@ -285,8 +297,8 @@ export function GitHubReposSetup() {
                             {active && <Check className="size-3" />}
                           </span>
                           <span className="min-w-0">
-                            <span className="block truncate text-sm text-white">{short}</span>
-                            <span className="block truncate text-[10px] text-zinc-600">
+                            <span className="block truncate text-sm text-foreground">{short}</span>
+                            <span className="block truncate text-[10px] text-muted-foreground">
                               {repo.fullName}
                             </span>
                           </span>
@@ -300,8 +312,8 @@ export function GitHubReposSetup() {
           </div>
         )}
 
-        <div className="sticky bottom-4 mt-8 flex flex-col gap-2 rounded-xl border border-[#2a2a2a] bg-[#0f0f0f]/95 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-zinc-500">
+        <div className="sticky bottom-4 mt-8 flex flex-col gap-2 rounded-xl border border-border bg-card/95 p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
             {selected.length} repo{selected.length === 1 ? '' : 's'} selected
             {workspaceOrgs.size > 0
               ? ` · ${workspaceOrgs.size} workspace${workspaceOrgs.size === 1 ? '' : 's'}`
@@ -310,7 +322,7 @@ export function GitHubReposSetup() {
           <div className="flex flex-wrap gap-2">
             <Link
               href="/onboarding"
-              className="rounded-lg border border-[#2a2a2a] px-4 py-2 text-xs text-zinc-400 hover:text-white"
+              className="rounded-lg border border-border px-4 py-2 text-xs text-muted-foreground hover:text-foreground"
             >
               Back
             </Link>
@@ -318,7 +330,7 @@ export function GitHubReposSetup() {
               type="button"
               disabled={saving}
               onClick={() => confirm(true)}
-              className="rounded-lg border border-[#2a2a2a] px-4 py-2 text-xs text-zinc-300 hover:text-white disabled:opacity-40"
+              className="rounded-lg border border-border px-4 py-2 text-xs text-foreground/80 hover:text-foreground disabled:opacity-40"
             >
               Skip — ingest all
             </button>

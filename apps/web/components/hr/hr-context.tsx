@@ -37,32 +37,29 @@ const HrContext = createContext<{
 export function HrProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<HrData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/hr');
-      if (res.ok) setData((await res.json()) as HrData);
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? `Failed to load HR data (${res.status})`);
+        return;
+      }
+      setData((await res.json()) as HrData);
+    } catch {
+      setError('Could not reach HR API');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch('/api/hr');
-        if (cancelled) return;
-        if (res.ok) setData((await res.json()) as HrData);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void refresh();
+  }, [refresh]);
 
   async function post(body: Record<string, unknown>) {
     const res = await fetch('/api/hr', {
@@ -80,6 +77,10 @@ export function HrProvider({ children }: { children: React.ReactNode }) {
         <div className="p-6 md:p-8">
           <DeskPageSkeleton cards={4} />
         </div>
+      ) : error && !data ? (
+        <div className="flex h-full items-center justify-center p-8">
+          <p className="text-center text-sm text-red-500">{error}</p>
+        </div>
       ) : (
         children
       )}
@@ -91,12 +92,4 @@ export function useHr() {
   const ctx = useContext(HrContext);
   if (!ctx) throw new Error('useHr must be used within HrProvider');
   return ctx;
-}
-
-export function formatCurrency(amount: number, currency = 'INR') {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
 }

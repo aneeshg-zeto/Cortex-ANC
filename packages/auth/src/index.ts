@@ -46,6 +46,11 @@ export function canManageWorkspace(role: CortexRole): boolean {
   return role === 'ceo' || role === 'super_admin';
 }
 
+/** CEO, client, or super admin can connect tools during onboarding. */
+export function canConnectOnboarding(role: CortexRole): boolean {
+  return role === 'ceo' || role === 'client' || role === 'super_admin';
+}
+
 /** True when the user still needs to enter a role passkey after sign-in. */
 export function needsRolePasskey(_email: string, storedRole?: string | null): boolean {
   return resolveRoleFromEmail('', storedRole) === 'member';
@@ -85,9 +90,16 @@ export function sessionToAuthUser(session: {
 }
 
 export {
+  COMPANY_CODE,
+  companySlugFromCode,
+  isCompanyPasskey,
   isExecutivePasskey,
+  isLegacyEmployeeCode,
+  isLegacyHrCode,
   isSuperAdminPasskey,
   redirectPathForRole,
   resolveRoleFromPasskey,
+  usesCompanyTenant,
   type ExecutiveRolePick,
+  type RolePick,
 } from './role-codes';

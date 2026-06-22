@@ -183,7 +183,7 @@ export function GitHubScopePanel({
   if (loading) {
     return (
       <div
-        className={`flex items-center justify-center text-zinc-500 ${compact ? 'h-20' : 'h-40'}`}
+        className={`flex items-center justify-center text-muted-foreground ${compact ? 'h-20' : 'h-40'}`}
       >
         <Loader2 className="size-4 animate-spin" />
       </div>
@@ -207,7 +207,7 @@ export function GitHubScopePanel({
               : 'Verify which GitHub repositories to ingest for this workspace.'}
           </p>
           {!compact && (
-            <p className="mt-0.5 text-[10px] text-zinc-500">
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
               Or create client projects below and assign repos per client.
             </p>
           )}
@@ -230,7 +230,7 @@ export function GitHubScopePanel({
               type="button"
               disabled={saving}
               onClick={() => saveScope(undefined, true)}
-              className="rounded-md border border-[#2a2a2a] px-2.5 py-1 text-[10px] text-zinc-400 hover:text-white disabled:opacity-40"
+              className="rounded-md border border-border px-2.5 py-1 text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-40"
             >
               Skip — ingest all
             </button>
@@ -245,12 +245,14 @@ export function GitHubScopePanel({
               {projects.map((project) => (
                 <li
                   key={project.id}
-                  className="rounded-md border border-[#2a2a2a] bg-[#0a0a0a] px-2 py-1.5"
+                  className="rounded-md border border-border bg-background px-2 py-1.5"
                 >
-                  <p className={`font-medium text-white ${compact ? 'text-[11px]' : 'text-sm'}`}>
+                  <p
+                    className={`font-medium text-foreground ${compact ? 'text-[11px]' : 'text-sm'}`}
+                  >
                     {project.name}
                   </p>
-                  <p className="text-[10px] text-zinc-500">
+                  <p className="text-[10px] text-muted-foreground">
                     {project.githubRepos.length
                       ? `${project.githubRepos.length} repos`
                       : 'No repos assigned'}
@@ -260,7 +262,7 @@ export function GitHubScopePanel({
             </ul>
           ) : (
             !showScopeBlock && (
-              <p className={`text-zinc-500 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+              <p className={`text-muted-foreground ${compact ? 'text-[10px]' : 'text-xs'}`}>
                 No client projects yet.
               </p>
             )
@@ -278,12 +280,12 @@ export function GitHubScopePanel({
                   Add client project
                 </button>
               ) : (
-                <div className="rounded-md border border-[#2a2a2a] bg-[#0a0a0a] p-2">
+                <div className="rounded-md border border-border bg-background p-2">
                   <input
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder="Client name"
-                    className="w-full rounded border border-[#2a2a2a] bg-[#0f0f0f] px-2 py-1 text-[11px] text-white outline-none focus:border-[#14b8a6]/70"
+                    className="w-full rounded border border-border bg-card px-2 py-1 text-[11px] text-foreground outline-none focus:border-[#14b8a6]/70"
                   />
                   <RepoPicker
                     compact
@@ -303,7 +305,7 @@ export function GitHubScopePanel({
                     <button
                       type="button"
                       onClick={() => setShowAddProject(false)}
-                      className="text-[10px] text-zinc-500 hover:text-white"
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
                     >
                       Cancel
                     </button>
@@ -314,7 +316,9 @@ export function GitHubScopePanel({
           )}
 
           {!allRepos.length && !showScopeBlock && (
-            <p className="text-[10px] text-zinc-600">Connect GitHub to assign repositories.</p>
+            <p className="text-[10px] text-muted-foreground">
+              Connect GitHub to assign repositories.
+            </p>
           )}
         </>
       )}
@@ -340,7 +344,9 @@ function RepoPicker({
     <div className={`space-y-1.5 overflow-y-auto ${compact ? 'mt-1.5 max-h-20' : 'mt-2 max-h-32'}`}>
       {orgs.map((org) => (
         <div key={org}>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">{org}</p>
+          <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+            {org}
+          </p>
           <div className="mt-0.5 flex flex-wrap gap-1">
             {reposByOrg[org].map((repo) => {
               const active = selected.includes(repo.fullName);
@@ -352,7 +358,7 @@ function RepoPicker({
                   className={`rounded border px-1.5 py-px text-[9px] transition-colors ${
                     active
                       ? 'border-[#14b8a6]/50 bg-[#14b8a6]/15 text-[#14b8a6]'
-                      : 'border-[#2a2a2a] text-zinc-400 hover:border-zinc-600'
+                      : 'border-border text-muted-foreground hover:border-zinc-600'
                   }`}
                 >
                   {repo.fullName.split('/')[1] ?? repo.fullName}
@@ -370,9 +376,9 @@ function RepoPicker({
 export function ClientProjectsPanel({ compact = true }: { compact?: boolean }) {
   return (
     <div className="panel-surface">
-      <div className="flex items-center gap-2 border-b border-[#1f1f1f]/80 px-3 py-2">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <GitBranch className="size-3 text-[#14b8a6]" />
-        <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
           GitHub & client projects
         </p>
       </div>

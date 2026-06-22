@@ -5,18 +5,12 @@ import { useEffect, useState } from 'react';
 
 import { EmployeeShell } from '@/components/employee/employee-shell';
 import { SkeletonTable } from '@/components/design-system';
+import { useCurrency } from '@/components/currency-provider';
 import { Badge } from '@cortex/ui';
 import type { HrPayslip } from '@cortex/shared';
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 export default function EmployeePayslipsPage() {
+  const { format } = useCurrency();
   const [payslips, setPayslips] = useState<HrPayslip[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,12 +54,10 @@ export default function EmployeePayslipsPage() {
                   return (
                     <tr key={slip.id} className="border-b border-border bg-background">
                       <td className="px-4 py-3 text-foreground">{slip.periodLabel}</td>
-                      <td className="px-4 py-3 text-foreground">{formatCurrency(slip.grossPay)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {formatCurrency(deductionTotal)}
-                      </td>
+                      <td className="px-4 py-3 text-foreground">{format(slip.grossPay)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{format(deductionTotal)}</td>
                       <td className="px-4 py-3 font-medium text-[#38bdf8]">
-                        {formatCurrency(slip.netPay)}
+                        {format(slip.netPay)}
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant={slip.status === 'issued' ? 'live' : 'default'}>

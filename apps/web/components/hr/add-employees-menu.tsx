@@ -27,11 +27,11 @@ export function AddEmployeesMenu() {
         <ChevronDown className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-2 min-w-[14rem] overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] py-1 shadow-xl">
+        <div className="absolute right-0 z-20 mt-2 min-w-[14rem] overflow-hidden rounded-xl border border-border bg-card py-1 shadow-xl">
           <Link
             href="/hr/upload?method=file"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-[#1a1a1a] hover:text-white"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted hover:text-foreground"
           >
             <FileSpreadsheet className="size-4 text-[#a78bfa]" />
             Upload Excel/CSV
@@ -39,7 +39,7 @@ export function AddEmployeesMenu() {
           <Link
             href="/hr/upload?method=google"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-[#1a1a1a] hover:text-white"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground/80 hover:bg-muted hover:text-foreground"
           >
             <Sheet className="size-4 text-[#a78bfa]" />
             Import from Google Sheets

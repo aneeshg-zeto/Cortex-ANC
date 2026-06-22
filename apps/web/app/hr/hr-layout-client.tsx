@@ -12,7 +12,7 @@ export function HrLayoutClient({ children }: { children: React.ReactNode }) {
 
   if (!isLoaded) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0a0a0a] text-zinc-500">
+      <div className="flex h-screen items-center justify-center bg-background text-muted-foreground">
         Loading…
       </div>
     );
@@ -20,8 +20,8 @@ export function HrLayoutClient({ children }: { children: React.ReactNode }) {
 
   if (!user || !canAccessHr(user.role)) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-[#0a0a0a] p-8 text-center">
-        <p className="text-zinc-400">HR access required.</p>
+      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-background p-8 text-center">
+        <p className="text-muted-foreground">HR access required.</p>
         <Link href="/auth/login" className="text-sm text-[#a78bfa] hover:underline">
           Sign in
         </Link>

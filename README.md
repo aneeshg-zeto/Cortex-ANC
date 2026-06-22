@@ -33,7 +33,8 @@ docker compose down     # stop containers
 
 - **Production:** Google OAuth (configure `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `.env`).
 - **Super admin:** `aneeshg@zeto.studio` (Google sign-in) — Panel access and employee approvals.
-- **Local dev only:** HR and Employee shortcuts on the login page when `HR_DEV_BYPASS` / `EMPLOYEE_DEV_BYPASS` are enabled (hidden in production).
+- **Employee shortcut:** login page when `EMPLOYEE_DEV_BYPASS=true` (enabled temporarily on Railway V1).
+- **Local dev only:** HR shortcut when `HR_DEV_BYPASS=true`.
 
 ## Railway (V1 slim)
 

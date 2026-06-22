@@ -93,13 +93,13 @@ export default function HrUploadPageClient() {
         <div className="flex gap-2 text-xs">
           <Link
             href="/hr/upload?method=file"
-            className={`rounded-lg px-3 py-1.5 ${method === 'file' ? 'bg-[#a78bfa]/20 text-[#a78bfa]' : 'text-zinc-500 hover:text-white'}`}
+            className={`rounded-lg px-3 py-1.5 ${method === 'file' ? 'bg-[#a78bfa]/20 text-[#a78bfa]' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Excel / CSV
           </Link>
           <Link
             href="/hr/upload?method=google"
-            className={`rounded-lg px-3 py-1.5 ${method === 'google' ? 'bg-[#a78bfa]/20 text-[#a78bfa]' : 'text-zinc-500 hover:text-white'}`}
+            className={`rounded-lg px-3 py-1.5 ${method === 'google' ? 'bg-[#a78bfa]/20 text-[#a78bfa]' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Google Sheets
           </Link>
@@ -117,12 +117,12 @@ export default function HrUploadPageClient() {
         )}
 
         {method === 'file' ? (
-          <GlassCard className="border-[#2a2a2a] bg-[#0f0f0f] p-8">
+          <GlassCard className="border-border bg-card p-8">
             <label
               className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 transition-colors ${
                 uploading
                   ? 'border-[#a78bfa]/30 opacity-60'
-                  : 'border-[#2a2a2a] hover:border-[#a78bfa]/50'
+                  : 'border-border hover:border-[#a78bfa]/50'
               }`}
             >
               {uploading ? (
@@ -130,10 +130,10 @@ export default function HrUploadPageClient() {
               ) : (
                 <Upload className="size-8 text-[#a78bfa]" />
               )}
-              <p className="mt-3 text-sm font-medium text-white">
+              <p className="mt-3 text-sm font-medium text-foreground">
                 {uploading ? 'Parsing file…' : 'Drop file or click to browse'}
               </p>
-              <p className="mt-1 text-xs text-zinc-500">.xlsx, .xls, or .csv</p>
+              <p className="mt-1 text-xs text-muted-foreground">.xlsx, .xls, or .csv</p>
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
@@ -145,13 +145,13 @@ export default function HrUploadPageClient() {
                 }}
               />
             </label>
-            <p className="mt-4 text-xs text-zinc-600">
+            <p className="mt-4 text-xs text-muted-foreground">
               Required columns: first_name, last_name, email, department, designation,
               date_of_joining, salary. Optional: bank_account_number, bank_ifsc, status.
             </p>
           </GlassCard>
         ) : loadingSheets ? (
-          <div className="flex h-40 items-center justify-center text-zinc-500">
+          <div className="flex h-40 items-center justify-center text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : (
@@ -162,21 +162,24 @@ export default function HrUploadPageClient() {
                 type="button"
                 disabled={uploading}
                 onClick={() => importSheet(sheet.id)}
-                className="flex w-full items-center justify-between rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] px-4 py-3 text-left text-sm text-white hover:border-[#a78bfa]/40 disabled:opacity-50"
+                className="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left text-sm text-foreground hover:border-[#a78bfa]/40 disabled:opacity-50"
               >
                 <span className="truncate">{sheet.name}</span>
                 <span className="text-xs text-[#a78bfa]">Import</span>
               </button>
             ))}
             {!sheets.length && !error && (
-              <p className="text-center text-sm text-zinc-500">
+              <p className="text-center text-sm text-muted-foreground">
                 No spreadsheets found in your Google Drive.
               </p>
             )}
           </div>
         )}
 
-        <Link href="/hr" className="inline-block text-sm text-zinc-500 hover:text-[#a78bfa]">
+        <Link
+          href="/hr"
+          className="inline-block text-sm text-muted-foreground hover:text-[#a78bfa]"
+        >
           Back to dashboard
         </Link>
       </div>

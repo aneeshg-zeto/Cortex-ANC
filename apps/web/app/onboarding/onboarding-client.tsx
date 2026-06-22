@@ -1,12 +1,13 @@
 'use client';
 
-import { canManageWorkspace } from '@cortex/auth';
+import { canConnectOnboarding } from '@cortex/auth';
 import { CheckCircle2, Circle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { useCortexUser } from '@/hooks/use-cortex-user';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 type ConnectorRow = { provider: string; healthy: boolean; reason?: string; lastSync?: string };
 type OnboardingStatus = {
@@ -42,7 +43,7 @@ export default function OnboardingClient() {
   const [needsGitHubScope, setNeedsGitHubScope] = useState(false);
   const handledRedirect = useRef<string | null>(null);
 
-  const canOnboard = user ? canManageWorkspace(user.role) : false;
+  const canOnboard = user ? canConnectOnboarding(user.role) : false;
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -180,15 +181,16 @@ export default function OnboardingClient() {
   const githubConnected = isConnected('github');
   const notionConnected = isConnected('notion');
   const coreConnected = googleConnected && githubConnected;
+  const canEnterDesk = googleConnected && (!githubConnected || !needsGitHubScope);
   const done = status?.status === 'complete';
   const ingesting = status?.status === 'running';
 
   const connectedCount = [googleConnected, githubConnected, notionConnected].filter(Boolean).length;
-  const percent = done ? 100 : coreConnected ? (ingesting ? 70 : 50) : connectedCount > 0 ? 35 : 10;
+  const percent = done ? 100 : canEnterDesk ? (ingesting ? 70 : 50) : connectedCount > 0 ? 35 : 10;
 
   if (!isLoaded) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         Loading…
       </div>
     );
@@ -196,7 +198,7 @@ export default function OnboardingClient() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background text-foreground">
         <p>Sign in to set up your workspace.</p>
         <Link href="/auth/login" className="text-[#14b8a6] hover:underline">
           Sign in
@@ -207,24 +209,24 @@ export default function OnboardingClient() {
 
   if (!canOnboard) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 text-center text-white">
-        <p className="text-zinc-400">Only CEOs can connect tools during onboarding.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground">
+        <p className="text-muted-foreground">Sign in with a CEO or Client role to connect tools.</p>
         <Link href="/auth/continue" className="text-[#14b8a6] hover:underline">
           Enter your role code →
-        </Link>
-        <Link href="/executive-desk" className="text-sm text-zinc-500 hover:text-zinc-300">
-          Go to Executive Desk
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] px-6 py-16 text-white">
+    <div className="relative min-h-screen bg-background px-6 py-16 text-foreground">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="mx-auto max-w-2xl">
         <p className="font-mono text-xs uppercase tracking-[0.3em] text-[#14b8a6]">Onboarding</p>
         <h1 className="mt-4 font-display text-3xl">Connect your tools</h1>
-        <p className="mt-2 text-zinc-400">
+        <p className="mt-2 text-muted-foreground">
           Authorize Google Workspace, GitHub, and Notion. Cortex ingests your real data — no demo
           seed.
         </p>
@@ -235,10 +237,12 @@ export default function OnboardingClient() {
           </p>
         )}
 
-        {coreConnected && (
+        {googleConnected && (
           <div className="mt-6 flex items-center gap-2 rounded border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-300">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-            Google and GitHub connected — you can enter the platform now.
+            {coreConnected
+              ? 'Google and GitHub connected — finish repo selection or enter the desk.'
+              : 'Google Workspace connected — connect GitHub or enter the desk when ready.'}
           </div>
         )}
 
@@ -248,12 +252,12 @@ export default function OnboardingClient() {
             style={{ width: `${percent}%` }}
           />
         </div>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-muted-foreground">
           {done
             ? 'Ingestion complete — full context ready'
             : ingesting
               ? 'Ingesting your data in the background…'
-              : coreConnected
+              : canEnterDesk
                 ? 'Ready to chat — indexing continues in the background'
                 : `Step: ${status?.step ?? 'connect_tools'}`}
         </p>
@@ -268,19 +272,19 @@ export default function OnboardingClient() {
               <li
                 key={c.id}
                 className={`flex items-center justify-between border px-4 py-4 transition-colors ${
-                  connected ? 'border-emerald-500/40 bg-emerald-950/10' : 'border-white/10 bg-black'
+                  connected ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-border bg-card'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   {connected ? (
                     <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
                   ) : (
-                    <Circle className="h-5 w-5 shrink-0 text-zinc-600" aria-hidden />
+                    <Circle className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
                   )}
                   <div>
                     <p className="font-medium">{c.label}</p>
                     <p
-                      className={`text-xs ${connected ? 'font-medium text-emerald-400' : 'text-zinc-500'}`}
+                      className={`text-xs ${connected ? 'font-medium text-emerald-400' : 'text-muted-foreground'}`}
                     >
                       {connected
                         ? lastSync
@@ -313,18 +317,18 @@ export default function OnboardingClient() {
           Browse all connectors →
         </Link>
 
-        {coreConnected && needsGitHubScope && (
+        {googleConnected && githubConnected && needsGitHubScope && (
           <div className="mt-12">
             <Link
               href="/onboarding/github-repos"
               className="inline-block w-full bg-white px-8 py-4 text-center text-sm font-semibold text-black hover:bg-zinc-100"
             >
-              Continue →
+              Select GitHub repos →
             </Link>
           </div>
         )}
 
-        {coreConnected && !needsGitHubScope && (
+        {canEnterDesk && (
           <div className="mt-12 space-y-3">
             <Link
               href="/executive-desk"
@@ -333,7 +337,7 @@ export default function OnboardingClient() {
               Enter Executive Desk →
             </Link>
             {!done && (
-              <p className="text-center text-xs text-zinc-500">
+              <p className="text-center text-xs text-muted-foreground">
                 You can ask questions now. Answers improve as ingestion finishes.
               </p>
             )}

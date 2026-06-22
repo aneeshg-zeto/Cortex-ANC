@@ -6,7 +6,7 @@ export default function OAuthCompletePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] text-zinc-500">
+        <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
           Completing connection…
         </div>
       }

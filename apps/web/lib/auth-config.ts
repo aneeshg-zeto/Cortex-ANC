@@ -13,6 +13,7 @@ export const googleAuthEnabled = Boolean(
 
 export const hrDevBypassEnabled = !isProduction && process.env.HR_DEV_BYPASS === 'true';
 
-export const employeeDevBypassEnabled = !isProduction && process.env.EMPLOYEE_DEV_BYPASS === 'true';
+/** Allowed in production when EMPLOYEE_DEV_BYPASS=true (temporary rollout shortcut). */
+export const employeeDevBypassEnabled = process.env.EMPLOYEE_DEV_BYPASS === 'true';
 
 export const socialAuthEnabled = githubAuthEnabled || googleAuthEnabled;

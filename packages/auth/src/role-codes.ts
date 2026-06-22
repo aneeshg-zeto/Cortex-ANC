@@ -1,34 +1,72 @@
 import type { CortexRole } from './index';
 
-const EXECUTIVE_CODE = 'Zeto';
-const HR_CODE = 'Zetohr';
-const EMPLOYEE_CODE = 'ZetoEmployee';
+/** Single company access code for all roles. */
+export const COMPANY_CODE = 'Zeto';
+
+/** Legacy per-role codes — still accepted for existing users. */
+const LEGACY_HR_CODE = 'Zetohr';
+const LEGACY_EMPLOYEE_CODE = 'ZetoEmployee';
 const SUPERADMIN_CODE = 'Superadmin';
 
+export type RolePick = 'ceo' | 'client' | 'hr' | 'employee';
+
+/** @deprecated use RolePick */
 export type ExecutiveRolePick = 'ceo' | 'client';
 
+export function isCompanyPasskey(code: string): boolean {
+  return code.trim().toLowerCase() === COMPANY_CODE.toLowerCase();
+}
+
+/** @deprecated alias for isCompanyPasskey */
 export function isExecutivePasskey(code: string): boolean {
-  return code.trim().toLowerCase() === EXECUTIVE_CODE.toLowerCase();
+  return isCompanyPasskey(code);
 }
 
 export function isSuperAdminPasskey(code: string): boolean {
   return code.trim().toLowerCase() === SUPERADMIN_CODE.toLowerCase();
 }
 
-/** Map a role passkey to a Cortex role. Executive code requires a pick (ceo or client). */
+export function isLegacyHrCode(code: string): boolean {
+  return code.trim().toLowerCase() === LEGACY_HR_CODE.toLowerCase();
+}
+
+export function isLegacyEmployeeCode(code: string): boolean {
+  return code.trim().toLowerCase() === LEGACY_EMPLOYEE_CODE.toLowerCase();
+}
+
+/** True when assign-role should map the user into the shared company tenant. */
+export function usesCompanyTenant(code: string): boolean {
+  return isCompanyPasskey(code) || isLegacyHrCode(code) || isLegacyEmployeeCode(code);
+}
+
+export function companySlugFromCode(code: string): string {
+  if (isCompanyPasskey(code)) return COMPANY_CODE.toLowerCase();
+  return code
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .slice(0, 48);
+}
+
+/**
+ * Map company code + role pick to a Cortex role.
+ * Legacy codes (Zetohr, ZetoEmployee) still resolve without a role pick.
+ */
 export function resolveRoleFromPasskey(
   code: string,
-  executivePick?: ExecutiveRolePick,
+  rolePick?: RolePick | ExecutiveRolePick,
 ): CortexRole | null {
   const trimmed = code.trim();
   if (!trimmed) return null;
 
   if (isSuperAdminPasskey(trimmed)) return 'super_admin';
-  if (trimmed.toLowerCase() === EXECUTIVE_CODE.toLowerCase()) {
-    return executivePick ?? null;
+  if (isLegacyHrCode(trimmed)) return 'hr';
+  if (isLegacyEmployeeCode(trimmed)) return 'employee';
+
+  if (isCompanyPasskey(trimmed)) {
+    return rolePick ?? null;
   }
-  if (trimmed.toLowerCase() === HR_CODE.toLowerCase()) return 'hr';
-  if (trimmed.toLowerCase() === EMPLOYEE_CODE.toLowerCase()) return 'employee';
+
   return null;
 }
 
@@ -41,9 +79,8 @@ export function redirectPathForRole(role: CortexRole, employeeId: string | null)
     case 'employee':
       return employeeId ? '/employee/dashboard' : '/auth/continue?employee=missing';
     case 'client':
-      return '/clients-desk';
     case 'ceo':
-      return '/executive-desk';
+      return '/onboarding';
     default:
       return '/executive-desk';
   }

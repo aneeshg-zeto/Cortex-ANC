@@ -282,7 +282,7 @@ export function EmailDeskPage() {
                           {sendOk && <span className="text-sm text-emerald-400">Sent.</span>}
                         </div>
                         {sources.length > 0 && (
-                          <p className="mt-2 text-[10px] text-zinc-600">
+                          <p className="mt-2 text-[10px] text-muted-foreground">
                             Sources: {sources.map((s) => s.title).join(' · ')}
                           </p>
                         )}

@@ -23,7 +23,7 @@ export function CortexNav() {
   const { user, isLoaded } = useCortexUser();
 
   return (
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+    <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
       <Link href="/executive-desk">
         <CortexLogo />
       </Link>
@@ -36,15 +36,15 @@ export function CortexNav() {
               href={l.href}
               className={`rounded-lg px-3 py-1.5 transition ${
                 pathname === l.href
-                  ? 'bg-white/10 text-white'
-                  : 'text-[#94a3b8] hover:bg-white/5 hover:text-white'
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
               {l.label}
             </Link>
           ))}
       </nav>
-      <div className="flex items-center gap-3 text-sm text-[#94a3b8]">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
         {!isLoaded ? null : user ? (
           <>
             <span>{user.name ?? user.email}</span>
@@ -59,13 +59,13 @@ export function CortexNav() {
                   },
                 })
               }
-              className="rounded-lg px-2 py-1 text-xs hover:bg-white/5 hover:text-white"
+              className="rounded-lg px-2 py-1 text-xs hover:bg-muted hover:text-foreground"
             >
               Sign out
             </button>
           </>
         ) : (
-          <Link href="/auth/login" className="hover:text-white">
+          <Link href="/auth/login" className="hover:text-foreground">
             Sign in
           </Link>
         )}

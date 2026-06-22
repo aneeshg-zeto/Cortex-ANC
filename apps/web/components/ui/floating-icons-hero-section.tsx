@@ -71,7 +71,7 @@ function FloatingIcon({
       className={cn('absolute z-0', iconData.className)}
     >
       <motion.div
-        className="flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-black/60 p-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md md:size-[4.5rem] md:p-3"
+        className="flex size-14 items-center justify-center rounded-2xl border border-border bg-card/80 p-2.5 shadow-lg backdrop-blur-md md:size-[4.5rem] md:p-3"
         animate={{ y: [0, -7, 0, 7, 0], x: [0, 5, 0, -5, 0], rotate: [0, 4, 0, -4, 0] }}
         transition={{
           duration: driftDuration,
@@ -80,7 +80,7 @@ function FloatingIcon({
           ease: 'easeInOut',
         }}
       >
-        <iconData.icon className="size-7 text-white md:size-8" />
+        <iconData.icon className="size-7 text-foreground md:size-8" />
       </motion.div>
     </motion.div>
   );
@@ -107,7 +107,7 @@ export function FloatingIconsHero({
         mouseY.current = e.clientY;
       }}
       className={cn(
-        'relative flex min-h-[100svh] w-full items-center justify-center overflow-hidden bg-black',
+        'relative flex min-h-[100svh] w-full items-center justify-center overflow-hidden bg-background',
         className,
       )}
       {...props}
@@ -127,28 +127,28 @@ export function FloatingIconsHero({
       </div>
 
       <div className="relative z-10 mx-auto max-w-4xl px-6 text-center md:px-12">
-        <h1 className="font-display text-[clamp(2.75rem,8vw,5.5rem)] leading-[0.95] tracking-tight text-white">
+        <h1 className="font-display text-[clamp(2.75rem,8vw,5.5rem)] leading-[0.95] tracking-tight text-foreground">
           {heading}
         </h1>
-        <p className="mx-auto mt-8 max-w-xl text-base leading-relaxed text-zinc-400 md:text-lg">
+        <p className="mx-auto mt-8 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg">
           {subtitle}
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <Button
             nativeButton={false}
             render={<a href={ctaHref}>{ctaText}</a>}
-            className="h-12 rounded-none bg-[#14b8a6] px-8 text-sm font-semibold uppercase tracking-wider text-black hover:bg-[#2dd4bf]"
+            className="h-12 rounded-none bg-primary px-8 text-sm font-semibold uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
           />
           {secondaryCtaText && secondaryCtaHref && (
             <a
               href={secondaryCtaHref}
-              className="border border-zinc-700 px-6 py-3 text-xs font-medium uppercase tracking-wider text-zinc-300 transition-colors hover:border-white hover:text-white"
+              className="border border-border px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
             >
               {secondaryCtaText}
             </a>
           )}
         </div>
-        <p className="mt-16 font-mono text-[10px] uppercase tracking-[0.35em] text-zinc-600">
+        <p className="mt-16 font-mono text-[10px] uppercase tracking-[0.35em] text-muted-foreground">
           Scroll ↓
         </p>
       </div>

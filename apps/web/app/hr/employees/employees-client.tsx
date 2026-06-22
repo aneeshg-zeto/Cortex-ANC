@@ -4,11 +4,19 @@ import { useState } from 'react';
 
 import { AddEmployeesMenu } from '@/components/hr/add-employees-menu';
 import { HrToast } from '@/components/hr/hr-toast';
-import { formatCurrency, useHr } from '@/components/hr/hr-context';
+import { useHr } from '@/components/hr/hr-context';
 import { HrShell } from '@/components/hr/hr-shell';
+import { useCurrency } from '@/components/currency-provider';
+import {
+  SparklineCell,
+  conditionalSalaryClass,
+  conditionalStatusClass,
+} from '@/components/studio/sparkline-cell';
+import { useMemo } from 'react';
 
 export default function HrEmployeesClient() {
   const { data, post } = useHr();
+  const { format } = useCurrency();
   const [toast, setToast] = useState('');
   const [warning, setWarning] = useState('');
   const [form, setForm] = useState({
@@ -57,6 +65,23 @@ export default function HrEmployeesClient() {
   }
 
   const pending = data?.pendingEmployeeApprovals ?? [];
+  const employees = data?.employees ?? [];
+  const medianSalary = useMemo(() => {
+    const active = employees.filter((e) => e.status === 'active');
+    if (!active.length) return 0;
+    return active.reduce((s, e) => s + e.salaryMonthly, 0) / active.length;
+  }, [employees]);
+
+  const salarySparkByDept = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const emp of employees) {
+      const dept = emp.department || 'Other';
+      const list = map.get(dept) ?? [];
+      list.push(emp.salaryMonthly);
+      map.set(dept, list);
+    }
+    return map;
+  }, [employees]);
 
   return (
     <HrShell title="Employees" subtitle="Roster and salary tracking" actions={<AddEmployeesMenu />}>
@@ -69,10 +94,10 @@ export default function HrEmployeesClient() {
       <div className="mx-auto max-w-4xl space-y-6">
         <form
           onSubmit={handleAdd}
-          className="rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 space-y-3"
+          className="rounded-xl border border-border bg-card p-4 space-y-3"
         >
-          <h2 className="text-sm font-medium text-white">Add employee manually</h2>
-          <p className="text-xs text-zinc-500">
+          <h2 className="text-sm font-medium text-foreground">Add employee manually</h2>
+          <p className="text-xs text-muted-foreground">
             New employees are sent to the CEO or a client approver before they appear in the roster.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -106,7 +131,7 @@ export default function HrEmployeesClient() {
             <input
               className="input-dark text-sm"
               type="number"
-              placeholder="Monthly salary"
+              placeholder="Monthly salary (₹)"
               value={form.salaryMonthly}
               onChange={(e) => setForm({ ...form, salaryMonthly: e.target.value })}
             />
@@ -136,8 +161,8 @@ export default function HrEmployeesClient() {
                 {pending.map((a) => (
                   <tr key={a.id} className="border-t border-amber-500/10">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-white">{a.employeeData.fullName}</p>
-                      <p className="text-xs text-zinc-500">{a.employeeData.email}</p>
+                      <p className="font-medium text-foreground">{a.employeeData.fullName}</p>
+                      <p className="text-xs text-muted-foreground">{a.employeeData.email}</p>
                     </td>
                     <td className="px-4 py-3 text-xs text-amber-200">Awaiting approval</td>
                   </tr>
@@ -147,37 +172,50 @@ export default function HrEmployeesClient() {
           </div>
         )}
 
-        <div className="overflow-hidden rounded-xl border border-[#2a2a2a]">
+        <div className="overflow-hidden rounded-xl border border-border">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#0f0f0f] text-xs uppercase text-zinc-500">
+            <thead className="bg-card text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Employee</th>
                 <th className="px-4 py-3">Department</th>
                 <th className="px-4 py-3">Salary</th>
+                <th className="px-4 py-3">Trend</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
             <tbody>
-              {(data?.employees ?? []).map((emp) => (
-                <tr key={emp.id} className="border-t border-[#2a2a2a]">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-white">{emp.fullName}</p>
-                    <p className="text-xs text-zinc-500">{emp.email}</p>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-400">{emp.department || '—'}</td>
-                  <td className="px-4 py-3 text-zinc-300">
-                    {formatCurrency(emp.salaryMonthly, emp.currency)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-[#a78bfa]/10 px-2 py-0.5 text-xs text-[#a78bfa]">
-                      {emp.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {!data?.employees.length && (
+              {employees.map((emp) => {
+                const deptSpark = salarySparkByDept.get(emp.department || 'Other') ?? [
+                  emp.salaryMonthly,
+                ];
+                return (
+                  <tr key={emp.id} className="border-t border-border">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-foreground">{emp.fullName}</p>
+                      <p className="text-xs text-muted-foreground">{emp.email}</p>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{emp.department || '—'}</td>
+                    <td
+                      className={`px-4 py-3 font-mono text-sm ${conditionalSalaryClass(emp.salaryMonthly, medianSalary)}`}
+                    >
+                      {format(emp.salaryMonthly)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <SparklineCell data={deptSpark} color="#a78bfa" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${conditionalStatusClass(emp.status)}`}
+                      >
+                        {emp.status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!employees.length && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-zinc-600">
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                     No approved employees yet
                   </td>
                 </tr>

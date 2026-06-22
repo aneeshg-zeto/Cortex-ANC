@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 
-import { formatCurrency, useHr } from '@/components/hr/hr-context';
+import { useCurrency } from '@/components/currency-provider';
+import { useHr } from '@/components/hr/hr-context';
 import { HrShell } from '@/components/hr/hr-shell';
 
 export default function HrPayrollPage() {
   const { data, post } = useHr();
+  const { format } = useCurrency();
   const now = new Date();
   const [periodLabel, setPeriodLabel] = useState(
     now.toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
@@ -32,9 +34,9 @@ export default function HrPayrollPage() {
   return (
     <HrShell title="Payroll" subtitle="Run monthly payroll and generate payslips">
       <div className="mx-auto max-w-4xl space-y-6">
-        <div className="rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] p-4">
-          <h2 className="text-sm font-medium text-white">Run payroll</h2>
-          <p className="mt-1 text-xs text-zinc-500">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-medium text-foreground">Run payroll</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
             Generates payslips for all active employees with standard PF and tax deductions.
           </p>
           <input
@@ -55,23 +57,23 @@ export default function HrPayrollPage() {
 
         <div className="space-y-2">
           {(data?.payroll ?? []).map((run) => (
-            <div key={run.id} className="rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] p-4">
+            <div key={run.id} className="rounded-xl border border-border bg-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="font-medium text-white">{run.periodLabel}</p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="font-medium text-foreground">{run.periodLabel}</p>
+                  <p className="text-xs text-muted-foreground">
                     {run.periodStart} → {run.periodEnd} · {run.employeeCount} employees
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-[#a78bfa]">{formatCurrency(run.totalNet)}</p>
-                  <p className="text-xs text-zinc-600">net payout</p>
+                  <p className="text-sm text-[#a78bfa]">{format(run.totalNet)}</p>
+                  <p className="text-xs text-muted-foreground">net payout</p>
                 </div>
               </div>
             </div>
           ))}
           {!data?.payroll.length && (
-            <p className="text-center text-sm text-zinc-600 py-8">No payroll runs yet</p>
+            <p className="text-center text-sm text-muted-foreground py-8">No payroll runs yet</p>
           )}
         </div>
       </div>

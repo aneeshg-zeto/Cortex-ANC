@@ -37,6 +37,10 @@
     "./hr/upload": {
       "types": "./dist/hr/employee-upload.d.ts",
       "import": "./dist/hr/employee-upload.js"
+    },
+    "./studio/types": {
+      "types": "./dist/studio/types.d.ts",
+      "import": "./dist/studio/types.js"
     }
   },
   "scripts": {

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 
@@ -12,6 +14,7 @@ async function findDevEmployee(pool: Pool): Promise<string | null> {
   const byEmail = await pool.query(
     `SELECT id FROM hr_employees
      WHERE tenant_id = $1 AND email = $2 AND status = 'active'
+     ORDER BY created_at ASC
      LIMIT 1`,
     [DEV_TENANT, EMPLOYEE_DEV_EMAIL],
   );
@@ -19,26 +22,31 @@ async function findDevEmployee(pool: Pool): Promise<string | null> {
   return null;
 }
 
-/** Dev-only: sign in as an existing employee record (HR must add the roster first). */
+async function ensureBypassEmployee(pool: Pool, tenantId: string, email: string): Promise<string> {
+  const existing = await findDevEmployee(pool);
+  if (existing) return existing;
+
+  const empId = `emp-bypass-${randomUUID().slice(0, 8)}`;
+  const inserted = await pool.query<{ id: string }>(
+    `INSERT INTO hr_employees (
+       id, tenant_id, employee_code, full_name, email, department, designation, status, salary_monthly
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 0)
+     ON CONFLICT (tenant_id, email) DO UPDATE SET status = 'active'
+     RETURNING id`,
+    [empId, tenantId, 'BYPASS-001', 'Employee', email, 'Operations', 'Employee'],
+  );
+  return String(inserted.rows[0]?.id ?? empId);
+}
+
+/** Shortcut sign-in as employee@cortex.local (dev / temporary prod bypass). */
 export async function POST(request: Request) {
   if (!employeeDevBypassEnabled) {
-    return NextResponse.json({ error: 'Employee dev bypass is disabled' }, { status: 403 });
+    return NextResponse.json({ error: 'Employee bypass is disabled' }, { status: 403 });
   }
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
   try {
-    const employeeId = await findDevEmployee(pool);
-    if (!employeeId) {
-      return NextResponse.json(
-        {
-          error:
-            'No employee record for employee@cortex.local. Add employees in HR first (upload or manual).',
-        },
-        { status: 404 },
-      );
-    }
-
     const existing = await pool.query(`SELECT id FROM "user" WHERE email = $1 LIMIT 1`, [
       EMPLOYEE_DEV_EMAIL,
     ]);
@@ -73,6 +81,8 @@ export async function POST(request: Request) {
         [DEV_TENANT],
       );
     }
+
+    const employeeId = await ensureBypassEmployee(pool, DEV_TENANT, EMPLOYEE_DEV_EMAIL);
 
     await pool.query(
       `UPDATE "user"

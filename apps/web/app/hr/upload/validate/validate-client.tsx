@@ -153,7 +153,7 @@ export default function HrUploadValidateClient() {
   if (!uploadId) {
     return (
       <HrShell title="Validate employee data" subtitle="Missing upload id">
-        <p className="text-zinc-500">
+        <p className="text-muted-foreground">
           <Link href="/hr/upload" className="text-[#a78bfa] hover:underline">
             Start a new upload
           </Link>
@@ -171,24 +171,24 @@ export default function HrUploadValidateClient() {
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
               <div className="flex flex-wrap gap-4 text-sm">
-                <span className="text-zinc-400">
-                  Total: <strong className="text-white">{summary.total}</strong>
+                <span className="text-muted-foreground">
+                  Total: <strong className="text-foreground">{summary.total}</strong>
                 </span>
-                <span className="text-zinc-400">
+                <span className="text-muted-foreground">
                   Valid: <strong className="text-[#a78bfa]">{summary.valid}</strong>
                 </span>
-                <span className="text-zinc-400">
+                <span className="text-muted-foreground">
                   Errors: <strong className="text-red-400">{summary.errors}</strong>
                 </span>
               </div>
-              <label className="flex items-center gap-2 text-xs text-zinc-400">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={errorsOnly}
                   onChange={(e) => setErrorsOnly(e.target.checked)}
-                  className="rounded border-[#2a2a2a]"
+                  className="rounded border-border"
                 />
                 Show only rows with errors
               </label>
@@ -200,9 +200,9 @@ export default function HrUploadValidateClient() {
               </p>
             )}
 
-            <div className="overflow-x-auto rounded-xl border border-[#2a2a2a]">
+            <div className="overflow-x-auto rounded-xl border border-border">
               <table className="min-w-full text-left text-xs">
-                <thead className="bg-[#0f0f0f] uppercase tracking-wide text-zinc-500">
+                <thead className="bg-card uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-2 py-2">Status</th>
                     {COLUMNS.map((c) => (
@@ -219,7 +219,7 @@ export default function HrUploadValidateClient() {
                       validations.find((v) => v.rowIndex === rowIndex)?.errors ?? [];
                     const valid = rowErrors.length === 0;
                     return (
-                      <tr key={rowIndex} className="border-t border-[#2a2a2a]">
+                      <tr key={rowIndex} className="border-t border-border">
                         <td className="px-2 py-1.5">
                           {valid ? (
                             <CheckCircle2 className="size-4 text-[#a78bfa]" aria-label="Valid" />
@@ -240,7 +240,7 @@ export default function HrUploadValidateClient() {
                                   <select
                                     autoFocus
                                     defaultValue={row[col.key]}
-                                    className="w-full min-w-[7rem] rounded border border-[#a78bfa]/50 bg-[#0a0a0a] px-1 py-0.5 text-white"
+                                    className="w-full min-w-[7rem] rounded border border-[#a78bfa]/50 bg-background px-1 py-0.5 text-foreground"
                                     onBlur={(e) => onCellBlur(rowIndex, col.key, e.target.value)}
                                   >
                                     <option value="">Select</option>
@@ -254,7 +254,7 @@ export default function HrUploadValidateClient() {
                                   <input
                                     autoFocus
                                     defaultValue={row[col.key]}
-                                    className="w-full min-w-[6rem] rounded border border-[#a78bfa]/50 bg-[#0a0a0a] px-1 py-0.5 text-white"
+                                    className="w-full min-w-[6rem] rounded border border-[#a78bfa]/50 bg-background px-1 py-0.5 text-foreground"
                                     onBlur={(e) => onCellBlur(rowIndex, col.key, e.target.value)}
                                   />
                                 )
@@ -266,7 +266,7 @@ export default function HrUploadValidateClient() {
                                   className={`block w-full truncate rounded px-1 py-0.5 text-left ${
                                     err
                                       ? 'border border-red-500/50 text-red-200'
-                                      : 'border border-transparent text-zinc-300 hover:border-[#a78bfa]/30'
+                                      : 'border border-transparent text-foreground/80 hover:border-[#a78bfa]/30'
                                   }`}
                                 >
                                   {row[col.key] || '—'}
@@ -282,10 +282,10 @@ export default function HrUploadValidateClient() {
               </table>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#2a2a2a] pt-4">
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
               <Link
                 href="/hr"
-                className="rounded-lg border border-[#2a2a2a] px-4 py-2 text-sm text-zinc-400 hover:text-white"
+                className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
               >
                 Cancel
               </Link>

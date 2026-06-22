@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
+import { ExecutionTimeline, buildIngestionSteps } from '@/components/studio/execution-timeline';
+
 type ProviderProgress = {
   provider: string;
   processed: number;
@@ -60,7 +62,7 @@ export function IngestionStatusBar() {
               setVisible(false);
               setProviders([]);
               hideTimer.current = null;
-            }, 3000);
+            }, 4000);
           }
         } else if (!data.active && !recentlyDone) {
           setVisible(false);
@@ -83,21 +85,34 @@ export function IngestionStatusBar() {
   if (hideOnOnboarding || !visible || providers.length === 0) return null;
 
   const allDone = providers.every((p) => p.status === 'completed');
+  const steps = buildIngestionSteps(providers);
 
   return (
     <div
-      className="relative z-50 border-b border-[#14b8a6]/20 bg-[#0a1a18] transition-opacity duration-500"
+      className="relative z-50 border-b border-primary/20 bg-primary/5 transition-opacity duration-500"
       role="status"
     >
-      <div className="space-y-0.5 px-4 py-2">
+      <ExecutionTimeline steps={steps} />
+      <div className="space-y-0.5 px-4 pb-2">
         {providers.map((p) => {
           const label = labelFor(p.provider);
           const total = p.total > 0 ? p.total : '…';
           const statusText = p.status === 'completed' ? 'done' : 'syncing…';
+          const pct = p.total > 0 ? Math.round((p.processed / p.total) * 100) : 0;
           return (
-            <p key={p.provider} className="text-center text-[11px] text-[#14b8a6]">
-              {label}: {p.processed}/{total} — {statusText}
-            </p>
+            <div key={p.provider}>
+              <p className="text-center text-[11px] text-[#14b8a6]">
+                {label}: {p.processed}/{total} — {statusText}
+              </p>
+              {p.status === 'running' && p.total > 0 && (
+                <div className="mx-auto mt-1 h-1 max-w-md overflow-hidden rounded-full bg-[#14b8a6]/10">
+                  <div
+                    className="h-full rounded-full bg-[#14b8a6] transition-all duration-500"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              )}
+            </div>
           );
         })}
         {allDone && (

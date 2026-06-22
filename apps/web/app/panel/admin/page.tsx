@@ -11,13 +11,15 @@ export default function PanelAdminPage() {
 
   if (!isLoaded) {
     return (
-      <div className="flex h-full items-center justify-center text-zinc-500">Loading admin…</div>
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        Loading admin…
+      </div>
     );
   }
 
   if (!user || !canAccessPlatformAdmin(user.role)) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-zinc-400">
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
         <p>Platform admin access required.</p>
         <Link href="/panel" className="text-sm text-[#14b8a6] hover:underline">
           Back to Panel overview

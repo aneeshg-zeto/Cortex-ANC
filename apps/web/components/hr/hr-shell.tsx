@@ -13,10 +13,9 @@ import {
   Users,
 } from 'lucide-react';
 
+import { ThemeToggle } from '@/components/theme-toggle';
 import { useCortexUser } from '@/hooks/use-cortex-user';
 import { authClient } from '@/lib/auth-client';
-
-import { ThemeToggle } from '@/components/theme-toggle';
 
 const NAV: { href: string; label: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
   { href: '/hr', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -27,6 +26,8 @@ const NAV: { href: string; label: string; icon: typeof LayoutDashboard; exact?: 
   { href: '/hr/emergency', label: 'Emergency', icon: AlertTriangle },
   { href: '/hr/plugins', label: 'Plugins', icon: Plug },
 ];
+
+const SHELL_SURFACE = 'border-border bg-card';
 
 export function HrShell({
   title,
@@ -43,21 +44,23 @@ export function HrShell({
   const { user } = useCortexUser();
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="hr-module flex h-screen flex-col overflow-hidden bg-background">
       <div
         className="grid min-h-0 flex-1"
         style={{ gridTemplateColumns: '15rem 1fr', gridTemplateRows: '4.25rem 1fr' }}
       >
-        <div className="flex items-center border-b border-r border-[#2a2a2a] bg-[#0f0f0f] px-4">
-          <Link href="/hr" className="font-display text-lg text-white">
+        <div className={`flex items-center border-b border-r ${SHELL_SURFACE} px-4`}>
+          <Link href="/hr" className="font-display text-lg text-foreground">
             Cortex <span className="text-[#a78bfa]">HR</span>
           </Link>
         </div>
 
-        <header className="flex items-center justify-between gap-4 border-b border-[#2a2a2a] bg-[#0f0f0f] px-6">
+        <header
+          className={`flex items-center justify-between gap-4 border-b ${SHELL_SURFACE} px-6`}
+        >
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-white">{title}</h1>
-            {subtitle && <p className="text-sm text-zinc-500">{subtitle}</p>}
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-3">
             {actions}
@@ -68,7 +71,7 @@ export function HrShell({
           </div>
         </header>
 
-        <aside className="flex min-h-0 flex-col border-r border-[#2a2a2a] bg-[#0f0f0f]">
+        <aside className={`flex min-h-0 flex-col border-r ${SHELL_SURFACE}`}>
           <nav className="flex-1 space-y-1 overflow-y-auto p-2">
             {NAV.map(({ href, label, icon: Icon, exact }) => {
               const active = exact ? pathname === href : pathname.startsWith(href);
@@ -79,7 +82,7 @@ export function HrShell({
                   className={`flex items-center gap-2.5 border-l-2 px-3 py-2.5 text-sm transition-colors duration-200 ${
                     active
                       ? 'border-[#a78bfa] bg-[#a78bfa]/10 font-medium text-[#a78bfa]'
-                      : 'border-transparent text-zinc-400 hover:bg-[#1a1a1a] hover:text-white'
+                      : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
                   <Icon className="size-4 shrink-0" />
@@ -88,8 +91,8 @@ export function HrShell({
               );
             })}
           </nav>
-          <div className="border-t border-[#2a2a2a] p-3">
-            <p className="truncate px-2 text-xs text-zinc-500">{user?.email}</p>
+          <div className="border-t border-border p-3">
+            <p className="truncate px-2 text-xs text-muted-foreground">{user?.email}</p>
             <button
               type="button"
               onClick={() =>
@@ -101,7 +104,7 @@ export function HrShell({
                   },
                 })
               }
-              className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-zinc-500 hover:text-white"
+              className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
               <LogOut className="size-3.5" />
               Sign out

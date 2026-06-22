@@ -4,9 +4,11 @@ import { CheckCircle2, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { GradientDivider } from '@/components/design-system';
+import { useCurrency } from '@/components/currency-provider';
 import type { HrEmployeeApproval } from '@cortex/shared';
 
 export function PanelApprovalsSection() {
+  const { format } = useCurrency();
   const [approvals, setApprovals] = useState<HrEmployeeApproval[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
@@ -81,10 +83,9 @@ export function PanelApprovalsSection() {
                       <p className="font-medium text-foreground">{d.fullName}</p>
                       <p className="text-sm text-muted-foreground">{d.email}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {d.department || '—'} · {d.designation || '—'} · {d.salaryMonthly}{' '}
-                        {d.currency}
+                        {d.department || '—'} · {d.designation || '—'} · {format(d.salaryMonthly)}
                       </p>
-                      <p className="mt-1 font-mono text-[10px] text-zinc-600">
+                      <p className="mt-1 font-mono text-[10px] text-muted-foreground">
                         Submitted {new Date(a.createdAt).toLocaleString()}
                       </p>
                     </div>
@@ -102,7 +103,7 @@ export function PanelApprovalsSection() {
                         type="button"
                         disabled={acting === a.id}
                         onClick={() => void review(a.id, 'denied')}
-                        className="inline-flex items-center gap-1 rounded-lg border border-[#2a2a2a] px-3 py-2 text-sm text-zinc-400 hover:text-white disabled:opacity-50"
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
                       >
                         <XCircle className="size-4" />
                         Deny

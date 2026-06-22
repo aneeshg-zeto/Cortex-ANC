@@ -48,7 +48,7 @@ export function SyncAllButton({ className = '' }: { className?: string }) {
         Sync all
       </button>
       {message ? (
-        <span className="max-w-[12rem] truncate text-[10px] text-zinc-500">{message}</span>
+        <span className="max-w-[12rem] truncate text-[10px] text-muted-foreground">{message}</span>
       ) : null}
     </div>
   );

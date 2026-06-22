@@ -1,11 +1,6 @@
 import { Suspense } from 'react';
 
-import {
-  employeeDevBypassEnabled,
-  githubAuthEnabled,
-  googleAuthEnabled,
-  hrDevBypassEnabled,
-} from '@/lib/auth-config';
+import { employeeDevBypassEnabled, githubAuthEnabled, googleAuthEnabled } from '@/lib/auth-config';
 
 import LoginForm from './login-form';
 
@@ -20,7 +15,6 @@ export default function LoginPage() {
       <LoginForm
         githubEnabled={githubAuthEnabled}
         googleEnabled={googleAuthEnabled}
-        hrDevEnabled={hrDevBypassEnabled}
         employeeDevEnabled={employeeDevBypassEnabled}
       />
     </Suspense>

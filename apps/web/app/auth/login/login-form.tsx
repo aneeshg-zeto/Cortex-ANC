@@ -5,11 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { authClient } from '@/lib/auth-client';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 type LoginFormProps = {
   githubEnabled?: boolean;
   googleEnabled?: boolean;
-  hrDevEnabled?: boolean;
   employeeDevEnabled?: boolean;
 };
 
@@ -21,7 +21,6 @@ type SignInConfig = {
 export default function LoginForm({
   githubEnabled = false,
   googleEnabled = false,
-  hrDevEnabled = false,
   employeeDevEnabled = false,
 }: LoginFormProps) {
   const router = useRouter();
@@ -82,34 +81,17 @@ export default function LoginForm({
     }
   }
 
-  async function handleHrDevSignIn() {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/auth/hr-dev', { method: 'POST', credentials: 'include' });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? 'HR sign-in failed');
-      }
-      router.push('/hr');
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'HR sign-in failed');
-      setLoading(false);
-    }
-  }
-
   async function handleEmployeeDevSignIn() {
     setLoading(true);
     setError('');
     try {
+      await authClient.signOut();
       const res = await fetch('/api/auth/dev-employee', { method: 'POST', credentials: 'include' });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error ?? 'Employee sign-in failed');
       }
-      router.push('/employee/dashboard');
-      router.refresh();
+      window.location.href = '/employee/dashboard';
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Employee sign-in failed');
       setLoading(false);
@@ -144,15 +126,18 @@ export default function LoginForm({
   const showSocial = oauth.github || oauth.google;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="dark-card w-full max-w-md p-8 animate-fade-in">
-        <Link href="/" className="font-display text-2xl text-white">
+        <Link href="/" className="font-display text-2xl text-foreground">
           Cortex
         </Link>
-        <h1 className="mt-6 text-xl font-semibold text-white">
+        <h1 className="mt-6 text-xl font-semibold text-foreground">
           {mode === 'signin' ? 'Sign in' : 'Create workspace'}
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           {showSocial
             ? 'Continue with Google or GitHub — then connect repos and tools in onboarding.'
             : 'Sign in with email to access your workspace.'}
@@ -178,7 +163,7 @@ export default function LoginForm({
                 type="button"
                 onClick={() => handleSocial('github')}
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-2 border border-zinc-700 bg-black px-4 py-3 text-sm text-white transition-colors hover:border-zinc-500 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 border border-border bg-card px-4 py-3 text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-50"
               >
                 Continue with GitHub
               </button>
@@ -188,16 +173,16 @@ export default function LoginForm({
 
         {showSocial && (
           <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-zinc-800" />
-            <span className="text-xs text-zinc-600">or use email</span>
-            <div className="h-px flex-1 bg-zinc-800" />
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">or use email</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
         )}
 
         <form onSubmit={handleEmailSubmit} className={showSocial ? 'space-y-4' : 'mt-8 space-y-4'}>
           {mode === 'signup' && (
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-zinc-400">
+              <label htmlFor="name" className="block text-sm font-medium text-muted-foreground">
                 Name
               </label>
               <input
@@ -211,7 +196,7 @@ export default function LoginForm({
             </div>
           )}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-zinc-400">
+            <label htmlFor="email" className="block text-sm font-medium text-muted-foreground">
               Email
             </label>
             <input
@@ -225,7 +210,7 @@ export default function LoginForm({
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-zinc-400">
+            <label htmlFor="password" className="block text-sm font-medium text-muted-foreground">
               Password
             </label>
             <input
@@ -248,33 +233,21 @@ export default function LoginForm({
           </button>
         </form>
 
-        {(hrDevEnabled || employeeDevEnabled) && mode === 'signin' && (
+        {employeeDevEnabled && mode === 'signin' && (
           <>
             <div className="my-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-zinc-800" />
-              <span className="text-xs text-zinc-600">development only</span>
-              <div className="h-px flex-1 bg-zinc-800" />
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">development only</span>
+              <div className="h-px flex-1 bg-border" />
             </div>
-            {hrDevEnabled && (
-              <button
-                type="button"
-                onClick={handleHrDevSignIn}
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#a78bfa]/40 bg-[#a78bfa]/10 px-4 py-3 text-sm font-medium text-[#a78bfa] transition-colors hover:bg-[#a78bfa]/20 disabled:opacity-50"
-              >
-                Sign in as HR
-              </button>
-            )}
-            {employeeDevEnabled && (
-              <button
-                type="button"
-                onClick={handleEmployeeDevSignIn}
-                disabled={loading}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl border border-[#38bdf8]/40 bg-[#38bdf8]/10 px-4 py-3 text-sm font-medium text-[#38bdf8] transition-colors hover:bg-[#38bdf8]/20 disabled:opacity-50${hrDevEnabled ? ' mt-3' : ''}`}
-              >
-                Sign in as Employee
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleEmployeeDevSignIn}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#38bdf8]/40 bg-[#38bdf8]/10 px-4 py-3 text-sm font-medium text-[#38bdf8] transition-colors hover:bg-[#38bdf8]/20 disabled:opacity-50"
+            >
+              Sign in as Employee
+            </button>
           </>
         )}
 
@@ -284,14 +257,14 @@ export default function LoginForm({
             setMode(mode === 'signin' ? 'signup' : 'signin');
             setError('');
           }}
-          className="mt-4 w-full text-center text-sm text-zinc-500 hover:text-[#14b8a6]"
+          className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-primary"
         >
           {mode === 'signin' ? 'Need a workspace? Sign up' : 'Already have an account? Sign in'}
         </button>
 
         <Link
           href="/"
-          className="mt-8 block text-center text-sm text-zinc-500 transition-colors hover:text-[#14b8a6]"
+          className="mt-8 block text-center text-sm text-muted-foreground transition-colors hover:text-primary"
         >
           ← Back to home
         </Link>

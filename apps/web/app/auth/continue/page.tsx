@@ -6,7 +6,7 @@ export default function AuthContinuePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-black text-zinc-400">
+        <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
           Signing you in…
         </div>
       }

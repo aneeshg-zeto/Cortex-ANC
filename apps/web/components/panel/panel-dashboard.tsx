@@ -22,11 +22,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { ClientProjectsPanel } from '@/components/panel/github-scope-panel';
+import { CeoKpiPane } from '@/components/panel/ceo-kpi-pane';
+import { PanelExecutiveInsights } from '@/components/panel/panel-executive-insights';
 import { WorkspacesOverviewPanel } from '@/components/panel/workspaces-overview-panel';
 import { GradientDivider, PanelDashboardSkeleton, StatusDot } from '@/components/design-system';
 import { TENANT_WORKSPACE_RENAMED_EVENT } from '@/hooks/use-active-workspace';
 import { useCortexUser } from '@/hooks/use-cortex-user';
-import { canManageWorkspace, canReviewApprovals } from '@cortex/auth';
+import { CHART_TOOLTIP_STYLE } from '@/lib/chart-styles';
+import { canAccessPanel, canManageWorkspace, canReviewApprovals } from '@cortex/auth';
 
 type Stats = {
   connectors: number;
@@ -142,7 +145,7 @@ function ConnectorProgress({ connected, total }: { connected: number; total: num
           style={{ width: `${Math.max(pct, connected > 0 ? 4 : 0)}%` }}
         />
       </div>
-      <p className="mt-1.5 text-[10px] text-zinc-500">{pct}% of catalog connected</p>
+      <p className="mt-1.5 text-[10px] text-muted-foreground">{pct}% of catalog connected</p>
     </div>
   );
 }
@@ -174,14 +177,14 @@ function SourceBars({ sources }: { sources: { name: string; count: number }[] })
     <div className="mt-2 space-y-1">
       {sources.slice(0, 3).map((s) => (
         <div key={s.name} className="flex items-center gap-2">
-          <span className="w-14 shrink-0 truncate text-[9px] text-zinc-500">{s.name}</span>
+          <span className="w-14 shrink-0 truncate text-[9px] text-muted-foreground">{s.name}</span>
           <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-[#06b6d4]/70"
               style={{ width: `${Math.round((s.count / max) * 100)}%` }}
             />
           </div>
-          <span className="w-8 shrink-0 text-right font-mono text-[9px] text-zinc-400">
+          <span className="w-8 shrink-0 text-right font-mono text-[9px] text-muted-foreground">
             {s.count}
           </span>
         </div>
@@ -321,10 +324,10 @@ export function GraphOverview({
   return (
     <div
       ref={containerRef}
-      className="relative h-[min(420px,50vh)] min-h-[280px] w-full overflow-hidden rounded-xl border border-[#1f1f1f] bg-[#060606]"
+      className="relative h-[min(420px,50vh)] min-h-[280px] w-full overflow-hidden rounded-xl border border-border bg-muted"
     >
       {seeded && (
-        <p className="absolute left-3 top-2 z-10 text-[10px] text-zinc-600">
+        <p className="absolute left-3 top-2 z-10 text-[10px] text-muted-foreground">
           Sample graph — connect tools to populate
         </p>
       )}
@@ -385,7 +388,7 @@ export function GraphOverview({
               className="cursor-pointer"
               onMouseEnter={() => setHovered(n)}
               onMouseLeave={() => setHovered(null)}
-              onClick={() => router.push('/graph')}
+              onClick={() => router.push('/studio?tab=graph')}
             >
               <circle
                 r={hovered?.id === n.id ? 11 : 8}
@@ -409,14 +412,14 @@ export function GraphOverview({
         </g>
       </svg>
       {hovered && (
-        <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-[#2a2a2a] bg-[#141414]/95 px-3 py-2 text-xs backdrop-blur-sm">
-          <p className="font-medium text-white">{hovered.label}</p>
-          <p className="text-zinc-500">{hovered.type}</p>
+        <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-border bg-muted/95 px-3 py-2 text-xs backdrop-blur-sm">
+          <p className="font-medium text-foreground">{hovered.label}</p>
+          <p className="text-muted-foreground">{hovered.type}</p>
         </div>
       )}
       <Link
-        href="/graph"
-        className="absolute right-3 top-3 flex items-center gap-1 rounded-lg border border-[#2a2a2a] bg-[#141414]/90 px-2 py-1 text-[10px] text-[#14b8a6] hover:border-[#14b8a6]/40"
+        href="/studio?tab=graph"
+        className="absolute right-3 top-3 flex items-center gap-1 rounded-lg border border-border bg-muted/90 px-2 py-1 text-[10px] text-[#14b8a6] hover:border-[#14b8a6]/40"
       >
         Explorer <ArrowRight className="size-3" />
       </Link>
@@ -427,18 +430,20 @@ export function GraphOverview({
 function EventTicker({ events, compact = false }: { events: string[]; compact?: boolean }) {
   if (!events.length) {
     return (
-      <p className={`text-zinc-600 ${compact ? 'text-[10px]' : 'text-xs'}`}>No recent activity.</p>
+      <p className={`text-muted-foreground ${compact ? 'text-[10px]' : 'text-xs'}`}>
+        No recent activity.
+      </p>
     );
   }
   const doubled = [...events, ...events];
   return (
     <div
-      className={`relative overflow-hidden rounded-lg bg-[#0a0a0a]/60 ${compact ? 'py-1.5' : 'py-2.5'}`}
+      className={`relative overflow-hidden rounded-lg bg-background/60 ${compact ? 'py-1.5' : 'py-2.5'}`}
     >
       <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r from-[#0f0f0f] to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-6 bg-gradient-to-l from-[#0f0f0f] to-transparent" />
       <div
-        className={`panel-ticker flex whitespace-nowrap text-zinc-400 ${compact ? 'text-[10px]' : 'text-xs'}`}
+        className={`panel-ticker flex whitespace-nowrap text-muted-foreground ${compact ? 'text-[10px]' : 'text-xs'}`}
       >
         {doubled.map((e, i) => (
           <span key={`${e}-${i}`} className="mx-4 inline-flex items-center gap-1.5">
@@ -463,6 +468,7 @@ export function PanelDashboard({
   const { user } = useCortexUser();
   const canManage = user ? canManageWorkspace(user.role) : false;
   const canReview = user ? canReviewApprovals(user.role) : false;
+  const showCeoKpis = user ? canAccessPanel(user.role) : false;
   const [stats, setStats] = useState<Stats | null>(null);
   const [users, setUsers] = useState<PanelUser[]>([]);
   const [graph, setGraph] = useState<{
@@ -614,6 +620,8 @@ export function PanelDashboard({
           <StatusDot label="Integration API" live={stats?.integrationLive ?? false} />
           <StatusDot label="Connectors" live={connectedCount > 0} />
         </div>
+        {view === 'overview' && showCeoKpis ? <CeoKpiPane /> : null}
+        {view === 'overview' && showCeoKpis ? <PanelExecutiveInsights /> : null}
         {view === 'overview' && (
           <div className="grid gap-2 lg:grid-cols-3">
             <div className="space-y-2 lg:col-span-2">
@@ -655,9 +663,9 @@ export function PanelDashboard({
                 </div>
               ) : null}
               <div className="panel-surface">
-                <div className="flex items-center gap-2 border-b border-[#1f1f1f]/80 px-3 py-2">
+                <div className="flex items-center gap-2 border-b border-border px-3 py-2">
                   <Activity className="size-3 text-[#14b8a6]" />
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
                     Live activity
                   </p>
                 </div>
@@ -810,7 +818,7 @@ export function PanelDashboard({
                   {graph ? (
                     <GraphOverview nodes={graph.nodes} edges={graph.edges} seeded={graph.seeded} />
                   ) : (
-                    <div className="flex h-64 items-center justify-center text-zinc-600">
+                    <div className="flex h-64 items-center justify-center text-muted-foreground">
                       Loading graph…
                     </div>
                   )}
@@ -846,14 +854,7 @@ export function PanelDashboard({
                           allowDecimals={false}
                           width={28}
                         />
-                        <Tooltip
-                          contentStyle={{
-                            background: '#141414',
-                            border: '1px solid #1f1f1f',
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                        />
+                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
                         <Area
                           type="monotone"
                           dataKey="count"
@@ -870,7 +871,7 @@ export function PanelDashboard({
 
             {/* Tabs */}
             <div className="panel-surface">
-              <div className="flex flex-wrap items-center gap-2 border-b border-[#1f1f1f]/80 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
                 {(
                   [
                     ['connections', 'Connections', Plug],
@@ -885,7 +886,7 @@ export function PanelDashboard({
                     className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition ${
                       tab === id
                         ? 'bg-[#14b8a6]/15 font-medium text-[#14b8a6]'
-                        : 'text-zinc-500 hover:bg-[#1a1a1a] hover:text-white'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
                     <Icon className="size-3.5" />
@@ -895,7 +896,7 @@ export function PanelDashboard({
                 <button
                   type="button"
                   onClick={() => void refresh()}
-                  className="ml-auto flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-zinc-500 hover:text-white"
+                  className="ml-auto flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
                 >
                   <RefreshCw className="size-3" /> Refresh
                 </button>
@@ -905,7 +906,7 @@ export function PanelDashboard({
                 <div className="px-4 pb-4 pt-3">
                   <table className="w-full min-w-[520px] text-left text-xs">
                     <thead>
-                      <tr className="border-b border-[#1f1f1f] text-zinc-500">
+                      <tr className="border-b border-border text-muted-foreground">
                         <th className="pb-2 font-medium">Provider</th>
                         <th className="pb-2 font-medium">Status</th>
                         <th className="pb-2 font-medium">Last sync</th>
@@ -929,23 +930,23 @@ export function PanelDashboard({
                       ).map((row) => {
                         const conn = connectors.find((c) => c.provider === row.id);
                         return (
-                          <tr key={row.id} className="border-b border-[#1f1f1f]/60">
-                            <td className="py-2.5 capitalize text-white">{row.name}</td>
+                          <tr key={row.id} className="border-b border-border">
+                            <td className="py-2.5 capitalize text-foreground">{row.name}</td>
                             <td className="py-2.5">
                               {row.connected ? (
                                 <span className="inline-flex items-center gap-1 text-emerald-400">
                                   <CheckCircle2 className="size-3" /> Live
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-zinc-500">
+                                <span className="inline-flex items-center gap-1 text-muted-foreground">
                                   <XCircle className="size-3" /> Idle
                                 </span>
                               )}
                             </td>
-                            <td className="py-2.5 text-zinc-500">
+                            <td className="py-2.5 text-muted-foreground">
                               {conn?.lastSync ? new Date(conn.lastSync).toLocaleString() : '—'}
                             </td>
-                            <td className="py-2.5 font-mono text-zinc-400">
+                            <td className="py-2.5 font-mono text-muted-foreground">
                               {row.processed > 0 ? row.processed : '—'}
                             </td>
                           </tr>
@@ -965,14 +966,14 @@ export function PanelDashboard({
               {tab === 'logs' && (
                 <div className="space-y-2 px-4 pb-4 pt-3">
                   {logs.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No Q&A logs yet.</p>
+                    <p className="text-sm text-muted-foreground">No Q&A logs yet.</p>
                   ) : (
                     logs.slice(0, 25).map((log) => (
                       <div
                         key={log.id}
-                        className="flex items-start justify-between gap-3 rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]/50 px-3 py-2"
+                        className="flex items-start justify-between gap-3 rounded-lg border border-border bg-background/50 px-3 py-2"
                       >
-                        <p className="min-w-0 flex-1 text-sm text-zinc-300">{log.query}</p>
+                        <p className="min-w-0 flex-1 text-sm text-foreground/80">{log.query}</p>
                         <div className="shrink-0 text-right">
                           <Badge
                             variant={
@@ -985,7 +986,7 @@ export function PanelDashboard({
                           >
                             {log.success === null ? '—' : log.success ? 'pass' : 'fail'}
                           </Badge>
-                          <p className="mt-1 font-mono text-[10px] text-zinc-600">
+                          <p className="mt-1 font-mono text-[10px] text-muted-foreground">
                             {new Date(log.created_at).toLocaleString()}
                           </p>
                         </div>
@@ -998,15 +999,15 @@ export function PanelDashboard({
               {tab === 'improvements' && (
                 <div className="space-y-2 px-4 pb-4 pt-3">
                   {improvements.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No improvement suggestions.</p>
+                    <p className="text-sm text-muted-foreground">No improvement suggestions.</p>
                   ) : (
                     improvements.map((item) => (
                       <div
                         key={item.id}
-                        className="rounded-lg border border-[#1f1f1f] bg-[#0a0a0a]/50 px-3 py-3"
+                        className="rounded-lg border border-border bg-background/50 px-3 py-3"
                       >
-                        <p className="text-sm text-zinc-200">{item.suggestion}</p>
-                        <p className="mt-1 text-[10px] text-zinc-500">
+                        <p className="text-sm text-foreground">{item.suggestion}</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
                           {item.category} · confidence {Number(item.confidence).toFixed(2)} ·{' '}
                           {item.status}
                         </p>
@@ -1021,7 +1022,7 @@ export function PanelDashboard({
                             </button>
                             <button
                               type="button"
-                              className="rounded-md border border-[#2a2a2a] px-2 py-1 text-[10px] text-zinc-400"
+                              className="rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground"
                               onClick={() => decideImprovement(item.id, 'dismissed')}
                             >
                               Dismiss
@@ -1136,7 +1137,7 @@ function PanelStatCard({
       <p className="mt-1 pl-1 font-mono text-2xl font-semibold tabular-nums tracking-tight text-foreground">
         {value}
       </p>
-      {sub && <p className="pl-1 text-[10px] text-zinc-500">{sub}</p>}
+      {sub && <p className="pl-1 text-[10px] text-muted-foreground">{sub}</p>}
       <div className="mt-auto pl-1 pt-2">{footer ?? ctaEl}</div>
       {footer && ctaEl}
     </div>

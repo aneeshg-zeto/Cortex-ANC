@@ -53,15 +53,15 @@ export function WorkspaceSwitcher() {
         <ChevronDown className={`size-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-1 min-w-[12rem] rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] py-1 shadow-xl">
+        <div className="absolute right-0 z-50 mt-1 min-w-[12rem] rounded-lg border border-border bg-card py-1 shadow-xl">
           <button
             type="button"
             onClick={() => {
               setActiveId(null);
               setOpen(false);
             }}
-            className={`block w-full px-3 py-2 text-left text-xs hover:bg-[#1a1a1a] ${
-              !activeId ? 'text-[#14b8a6]' : 'text-zinc-300'
+            className={`block w-full px-3 py-2 text-left text-xs hover:bg-muted ${
+              !activeId ? 'text-[#14b8a6]' : 'text-foreground/80'
             }`}
           >
             {companyLabel} (all)
@@ -74,8 +74,8 @@ export function WorkspaceSwitcher() {
                 setActiveId(p.id);
                 setOpen(false);
               }}
-              className={`block w-full px-3 py-2 text-left text-xs hover:bg-[#1a1a1a] ${
-                activeId === p.id ? 'text-[#14b8a6]' : 'text-zinc-300'
+              className={`block w-full px-3 py-2 text-left text-xs hover:bg-muted ${
+                activeId === p.id ? 'text-[#14b8a6]' : 'text-foreground/80'
               }`}
             >
               {p.name}

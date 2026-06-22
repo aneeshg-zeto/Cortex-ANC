@@ -6,7 +6,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   return (
     <Suspense
       fallback={
-        <div className="flex h-full items-center justify-center bg-[#0a0a0a] text-zinc-500">
+        <div className="flex h-full items-center justify-center bg-background text-muted-foreground">
           Loading panel…
         </div>
       }

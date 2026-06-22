@@ -23,18 +23,18 @@ import {
   HR_PLUGIN_CATALOG,
 } from '@cortex/shared';
 
-export const GET = withHrAuth(async (_request, { tenant, user }) => {
-  const [stats, employees, payroll, payslips, leave, notices, plugins, pendingApprovals] =
-    await Promise.all([
-      getHrDashboardStats(tenant),
-      listHrEmployees(tenant),
-      listPayrollRuns(tenant),
-      listPayslips(tenant),
-      listLeaveRequests(tenant),
-      listEmergencyNotices(tenant),
-      listHrPlugins(tenant),
-      listApprovalsByRequester(tenant, user.id),
-    ]);
+export const GET = withHrAuth(async (_request, { tenant }) => {
+  const employees = await listHrEmployees(tenant);
+
+  const [stats, payroll, payslips, leave, notices, plugins, pendingApprovals] = await Promise.all([
+    getHrDashboardStats(tenant),
+    listPayrollRuns(tenant),
+    listPayslips(tenant),
+    listLeaveRequests(tenant),
+    listEmergencyNotices(tenant),
+    listHrPlugins(tenant),
+    listApprovalsByRequester(tenant, user.id),
+  ]);
 
   return NextResponse.json({
     stats,

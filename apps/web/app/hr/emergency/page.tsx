@@ -22,11 +22,8 @@ export default function HrEmergencyPage() {
   return (
     <HrShell title="Emergency notices" subtitle="Broadcast urgent updates to employees">
       <div className="mx-auto max-w-4xl space-y-6">
-        <form
-          onSubmit={publish}
-          className="rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] p-4 space-y-3"
-        >
-          <h2 className="text-sm font-medium text-white">Publish notice</h2>
+        <form onSubmit={publish} className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <h2 className="text-sm font-medium text-foreground">Publish notice</h2>
           <input
             className="input-dark w-full text-sm"
             placeholder="Title"
@@ -68,12 +65,12 @@ export default function HrEmergencyPage() {
                   ? 'border-red-500/40 bg-red-500/5'
                   : n.severity === 'warning'
                     ? 'border-amber-500/40 bg-amber-500/5'
-                    : 'border-[#2a2a2a] bg-[#0f0f0f]'
+                    : 'border-border bg-card'
               }`}
             >
-              <p className="font-medium text-white">{n.title}</p>
-              <p className="mt-1 text-sm text-zinc-400">{n.body}</p>
-              <p className="mt-2 text-xs text-zinc-600 capitalize">
+              <p className="font-medium text-foreground">{n.title}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>
+              <p className="mt-2 text-xs text-muted-foreground capitalize">
                 {n.severity} · {new Date(n.createdAt).toLocaleString()}
               </p>
             </div>

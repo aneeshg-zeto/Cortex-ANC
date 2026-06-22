@@ -211,17 +211,17 @@ export function ConnectorsGallery() {
       subtitle={`Browse and connect ${connectors.length || '…'} tools — sync data into Executive Desk`}
       badge={<ProjectBadge tenantId={tenantId} />}
     >
-      <div className="mesh-bg relative h-full overflow-y-auto p-6 text-white">
+      <div className="mesh-bg relative h-full overflow-y-auto p-6 text-foreground">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(59,130,246,0.04),transparent)]" />
         <div className="relative mx-auto max-w-6xl animate-fade-in">
           <div className="flex justify-end">
-            <label className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-[#2a2a2a] bg-[#141414] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 focus-within:border-[#14b8a6] focus-within:ring-1 focus-within:ring-[#14b8a6]/30">
-              <Search className="size-4 shrink-0 text-zinc-500" aria-hidden />
+            <label className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-border bg-muted px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 focus-within:border-[#14b8a6] focus-within:ring-1 focus-within:ring-[#14b8a6]/30">
+              <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search connectors…"
-                className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none"
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
               />
             </label>
           </div>
@@ -254,7 +254,7 @@ export function ConnectorsGallery() {
                 className={`rounded-full px-4 py-1.5 text-xs capitalize transition-all duration-200 ${
                   category === cat
                     ? 'bg-[#14b8a6] font-medium text-[#0a0a0a] shadow-[0_0_16px_rgba(20,184,166,0.3)]'
-                    : 'border border-[#2a2a2a] bg-[#141414]/60 text-zinc-400 hover:border-[#3a3a3a] hover:text-white'
+                    : 'border border-border bg-muted/60 text-muted-foreground hover:border-[#3a3a3a] hover:text-foreground'
                 }`}
               >
                 {cat}
@@ -269,10 +269,12 @@ export function ConnectorsGallery() {
               ))}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="mt-16 flex flex-col items-center rounded-2xl border border-dashed border-[#2a2a2a] bg-[#141414]/40 px-6 py-14 text-center">
-              <Plug className="size-10 text-zinc-600" />
-              <p className="mt-4 font-medium text-zinc-300">No connectors match your search</p>
-              <p className="mt-1 text-sm text-zinc-500">Try a different keyword or category</p>
+            <div className="mt-16 flex flex-col items-center rounded-2xl border border-dashed border-border bg-muted/40 px-6 py-14 text-center">
+              <Plug className="size-10 text-muted-foreground" />
+              <p className="mt-4 font-medium text-foreground/80">No connectors match your search</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Try a different keyword or category
+              </p>
             </div>
           ) : (
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -283,7 +285,7 @@ export function ConnectorsGallery() {
                 >
                   <div className="connector-card-glow opacity-0 group-hover:opacity-100" />
                   <div className="relative flex items-start gap-3">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#0f0f0f] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition group-hover:border-[#14b8a6]/30">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition group-hover:border-[#14b8a6]/30">
                       {c.logoUrl ? (
                         <img src={c.logoUrl} alt="" className="size-6 object-contain" />
                       ) : (
@@ -291,8 +293,10 @@ export function ConnectorsGallery() {
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-white">{c.name}</p>
-                      <p className="mt-0.5 text-xs capitalize text-zinc-500">{c.category}</p>
+                      <p className="font-medium text-foreground">{c.name}</p>
+                      <p className="mt-0.5 text-xs capitalize text-muted-foreground">
+                        {c.category}
+                      </p>
                     </div>
                     {c.syncStatus === 'running' ? (
                       <span className="connector-badge connector-badge-sync">
@@ -310,11 +314,11 @@ export function ConnectorsGallery() {
                       <span className="connector-badge connector-badge-idle">Idle</span>
                     )}
                   </div>
-                  <p className="relative mt-3 line-clamp-2 text-sm leading-relaxed text-zinc-400">
+                  <p className="relative mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                     {c.description}
                   </p>
                   {c.connected && c.lastSync && (
-                    <p className="relative mt-2 text-[11px] text-zinc-600">
+                    <p className="relative mt-2 text-[11px] text-muted-foreground">
                       Last sync {new Date(c.lastSync).toLocaleString()}
                     </p>
                   )}
@@ -337,7 +341,7 @@ export function ConnectorsGallery() {
                   )}
                   <div className="relative mt-auto flex gap-2 pt-4">
                     {c.comingSoon ? (
-                      <span className="flex flex-1 items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#141414]/60 px-3 py-2 text-xs text-zinc-500">
+                      <span className="flex flex-1 items-center justify-center rounded-xl border border-border bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
                         Coming soon
                       </span>
                     ) : c.connected ? (
@@ -376,7 +380,7 @@ export function ConnectorsGallery() {
             </p>
           )}
 
-          <p className="mt-10 pb-4 text-center text-sm text-zinc-600">
+          <p className="mt-10 pb-4 text-center text-sm text-muted-foreground">
             Need Google, GitHub, or Notion first?{' '}
             <Link
               href="/onboarding"
@@ -395,14 +399,14 @@ export function ConnectorsGallery() {
               <Plug className="size-5 text-[#14b8a6]" />
             </div>
             <h2 className="mt-4 text-lg font-medium">Connect {apiKeyModal.name}</h2>
-            <p className="mt-2 text-sm text-zinc-500">Enter your API credentials.</p>
-            <label className="mt-4 block text-xs text-zinc-400">API Key</label>
+            <p className="mt-2 text-sm text-muted-foreground">Enter your API credentials.</p>
+            <label className="mt-4 block text-xs text-muted-foreground">API Key</label>
             <input
               className="input-dark mt-1 w-full text-sm"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
             />
-            <label className="mt-3 block text-xs text-zinc-400">Token / Secret</label>
+            <label className="mt-3 block text-xs text-muted-foreground">Token / Secret</label>
             <input
               className="input-dark mt-1 w-full text-sm"
               value={apiToken}
