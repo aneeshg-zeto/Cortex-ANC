@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ChatInput,
   ChatMessage,
@@ -14,6 +14,7 @@ import {
 
 import { AppShell } from '@/components/app-shell';
 import { DeskToolbar } from '@/components/desk-toolbar';
+import { TodayCompass } from '@/components/executive-desk/compass';
 import { useActiveWorkspace } from '@/hooks/use-active-workspace';
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
@@ -27,6 +28,8 @@ type DeskMessage = {
 export function ExecutiveDeskPage() {
   const { user } = useCortexUser();
   const { effectiveProjectIds } = useActiveWorkspace();
+
+  const [syncing, setSyncing] = useState(false);
   const [messages, setMessages] = useState<DeskMessage[]>([
     {
       id: 'welcome',
@@ -36,6 +39,13 @@ export function ExecutiveDeskPage() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/ingestion/status')
+      .then((r) => r.json())
+      .then((d: { active: boolean }) => setSyncing(d.active))
+      .catch(() => null);
+  }, []);
 
   async function handleAsk() {
     const question = input.trim();
@@ -117,6 +127,14 @@ export function ExecutiveDeskPage() {
         />
       }
     >
+      <div className="mx-auto w-full max-w-4xl px-4 pt-2">
+        {syncing && (
+          <div className="mb-2 rounded-lg border border-[#14b8a6]/20 bg-[#14b8a6]/5 px-3 py-2 text-center text-xs text-[#14b8a6]">
+            Syncing your data… questions may not have full context until sync completes.
+          </div>
+        )}
+        <TodayCompass />
+      </div>
       <ChatWindow variant="dark" className="h-full">
         {messages.map((message) => (
           <ChatMessage key={message.id} role={message.role} variant="dark">

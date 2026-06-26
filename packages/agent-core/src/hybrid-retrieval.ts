@@ -86,6 +86,7 @@ function rankResults(results: SearchResult[], query: string): SearchResult[] {
   });
 }
 
+/** @deprecated Use retrieval-router.ts and queryDocumentsForUser() instead. */
 export async function hybridRetrieveContext(
   query: string,
   topK = 5,

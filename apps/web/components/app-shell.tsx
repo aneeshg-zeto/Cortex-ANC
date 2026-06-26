@@ -9,6 +9,7 @@ import { useCortexUser } from '@/hooks/use-cortex-user';
 import { authClient } from '@/lib/auth-client';
 
 import { IngestionStatusBar } from './ingestion-status-bar';
+import { NotificationBadge } from './notification-badge';
 import { CommandPalette } from './studio/command-palette';
 import { CurrencyToggle } from './currency-toggle';
 import { ThemeToggle } from './theme-toggle';
@@ -151,6 +152,7 @@ export function AppShell({
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {badge}
             {showCurrency && <CurrencyToggle />}
+            <NotificationBadge />
             <ThemeToggle />
           </div>
         </header>

@@ -38,9 +38,37 @@
       "types": "./dist/hr/employee-upload.d.ts",
       "import": "./dist/hr/employee-upload.js"
     },
+    "./hr/demo-seed": {
+      "types": "./dist/hr/hr-demo-seed.d.ts",
+      "import": "./dist/hr/hr-demo-seed.js"
+    },
     "./studio/types": {
       "types": "./dist/studio/types.d.ts",
       "import": "./dist/studio/types.js"
+    },
+    "./ingestion/adapter": {
+      "types": "./dist/ingestion/adapter.d.ts",
+      "import": "./dist/ingestion/adapter.js"
+    },
+    "./ingestion/document-store": {
+      "types": "./dist/ingestion/document-store.d.ts",
+      "import": "./dist/ingestion/document-store.js"
+    },
+    "./ingestion/embedder": {
+      "types": "./dist/ingestion/embedder.d.ts",
+      "import": "./dist/ingestion/embedder.js"
+    },
+    "./ingestion/adapters": {
+      "types": "./dist/ingestion/adapters/index.d.ts",
+      "import": "./dist/ingestion/adapters/index.js"
+    },
+    "./db/tenant-pool": {
+      "types": "./dist/db/tenant-pool.d.ts",
+      "import": "./dist/db/tenant-pool.js"
+    },
+    "./ingestion/ingest-runner": {
+      "types": "./dist/ingestion/ingest-runner.d.ts",
+      "import": "./dist/ingestion/ingest-runner.js"
     }
   },
   "scripts": {

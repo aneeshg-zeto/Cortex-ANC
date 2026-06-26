@@ -34,11 +34,6 @@ export const POST = withAuth(
       const { spawnIngestResync } = await import('@/lib/spawn-ingest');
       const started = spawnIngestResync(tenant.tenantId, provider);
       if (!started) {
-        await queryWithTenant(
-          tenant,
-          `UPDATE tenant_onboarding SET status = 'complete', step = 'ready', updated_at = NOW() WHERE tenant_id = $1`,
-          [tenant.tenantId],
-        );
         return NextResponse.json({
           success: true,
           workflowId: null,

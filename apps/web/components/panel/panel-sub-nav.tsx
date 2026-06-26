@@ -8,6 +8,7 @@ import { useCortexUser } from '@/hooks/use-cortex-user';
 
 const LINKS: { href: string; label: string; exact?: boolean; reviewOnly?: boolean }[] = [
   { href: '/panel', label: 'Overview', exact: true },
+  { href: '/panel/alerts', label: 'Radar', exact: true },
   { href: '/panel/approvals', label: 'Approvals', reviewOnly: true },
 ];
 

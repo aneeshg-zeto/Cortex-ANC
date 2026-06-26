@@ -1,4 +1,6 @@
-export type CortexRole = 'super_admin' | 'ceo' | 'client' | 'hr' | 'employee' | 'member';
+import type { CortexRole } from '../ingestion/constants';
+
+export type { CortexRole };
 
 export type TenantContext = {
   tenantId: string;

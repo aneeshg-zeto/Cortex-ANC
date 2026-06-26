@@ -163,7 +163,13 @@ export function GitHubReposSetup() {
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? 'Save failed');
-      router.push(deskPath);
+
+      // Re-fetch redirect now that scope is saved
+      const [checkRes] = await Promise.all([fetch('/api/onboarding/connected-check')]);
+      const checkData = (await checkRes.json()) as { redirectTo?: string };
+
+      setSaving(false);
+      router.push(checkData.redirectTo || '/executive-desk');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed');
       setSaving(false);

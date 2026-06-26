@@ -25,6 +25,11 @@ export async function ensureSchema(connectionString: string): Promise<void> {
       ON cortex_documents USING ivfflat (embedding vector_cosine_ops)
       WITH (lists = 100)
     `);
+    // NOTE: IVFFlat requires lists tuning as corpus grows.
+    // At 100k+ docs per tenant: rebuild index with lists = sqrt(row_count).
+    // Monitor with: EXPLAIN (ANALYZE, BUFFERS) SELECT ... ORDER BY embedding <=> $1
+    // Switch to HNSW (pgvector 0.5+) for better recall at scale:
+    // CREATE INDEX CONCURRENTLY ... USING hnsw (embedding vector_cosine_ops)
   } finally {
     client.release();
     await pool.end();

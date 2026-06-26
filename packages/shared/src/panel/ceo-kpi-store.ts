@@ -1,6 +1,8 @@
-import { queryWithTenant } from '../db/tenant-pool';
+import { getPool, queryWithTenant } from '../db/tenant-pool';
 import { getHrDashboardStats } from '../hr/hr-store';
+import { getDocumentStats } from '../ingestion/document-store';
 import { listTenantProjects } from '../projects/tenant-projects';
+import type { ConnectorSource } from '../ingestion/adapter';
 import type { TenantContext } from '../tenant/types';
 import { inferCompanyTier, kpisForTier, type CompanyTier, type KpiDefinition } from './kpi-tiers';
 
@@ -33,7 +35,10 @@ export type CeoKpiPayload = {
   highlights: string[];
 };
 
-async function getConnectorHealth(tenant: TenantContext) {
+async function getConnectorHealth(
+  tenant: TenantContext,
+  docStats: Awaited<ReturnType<typeof getDocumentStats>>,
+) {
   const r = await queryWithTenant<{
     provider: string;
     status: string;
@@ -41,39 +46,58 @@ async function getConnectorHealth(tenant: TenantContext) {
   }>(tenant, `SELECT provider, status, last_sync_at FROM connector_health WHERE tenant_id = $1`, [
     tenant.tenantId,
   ]);
-  return r.rows.map((row) => ({
-    provider: row.provider,
-    healthy: row.status === 'connected',
-    lastSync: row.last_sync_at ?? undefined,
-  }));
+
+  const providerSources: Record<string, ConnectorSource[]> = {
+    'google-workspace': ['gmail', 'google_drive', 'google_calendar'],
+    github: ['github'],
+    notion: ['notion'],
+    slack: ['slack'],
+    linear: ['linear'],
+    jira: ['jira'],
+  };
+
+  return r.rows.map((row) => {
+    const sources = providerSources[row.provider] ?? [row.provider as ConnectorSource];
+    const freshest = sources
+      .map((source) => docStats[source]?.lastUpdated)
+      .filter((value): value is Date => value instanceof Date)
+      .sort((a, b) => b.getTime() - a.getTime())[0];
+
+    return {
+      provider: row.provider,
+      healthy: row.status === 'connected',
+      lastSync: row.last_sync_at ?? freshest?.toISOString(),
+    };
+  });
 }
 
-async function getDocumentCounts(tenant: TenantContext) {
+async function getDocumentCounts(
+  tenant: TenantContext,
+  docStats: Awaited<ReturnType<typeof getDocumentStats>>,
+) {
   const r = await queryWithTenant<{
-    gmail_total: string;
     gmail_week: string;
     github_issues: string;
     github_prs: string;
   }>(
     tenant,
     `SELECT
-       COUNT(*) FILTER (WHERE metadata->>'source' = 'gmail')::text AS gmail_total,
        COUNT(*) FILTER (
          WHERE metadata->>'source' = 'gmail'
            AND created_at > NOW() - INTERVAL '7 days'
        )::text AS gmail_week,
        COUNT(*) FILTER (
-         WHERE metadata->>'source' = 'github' AND metadata->>'type' = 'issue'
+         WHERE metadata->>'source' = 'github' AND document_type = 'issue'
        )::text AS github_issues,
        COUNT(*) FILTER (
-         WHERE metadata->>'source' = 'github' AND metadata->>'type' = 'pull_request'
+         WHERE metadata->>'source' = 'github' AND document_type = 'pull_request'
        )::text AS github_prs
      FROM cortex_documents WHERE tenant_id = $1`,
     [tenant.tenantId],
   );
   const row = r.rows[0];
   return {
-    gmailTotal: Number(row?.gmail_total ?? 0),
+    gmailTotal: docStats.gmail.count,
     gmailWeek: Number(row?.gmail_week ?? 0),
     githubIssues: Number(row?.github_issues ?? 0),
     githubPrs: Number(row?.github_prs ?? 0),
@@ -404,18 +428,19 @@ function buildMetric(
 }
 
 export async function getCeoKpiPayload(tenant: TenantContext): Promise<CeoKpiPayload> {
+  const docStats = await getDocumentStats(tenant.tenantId, getPool());
   const [hr, docs, projects, health, payrollMonthly, departments, sparkline] = await Promise.all([
     getHrDashboardStats(tenant),
-    getDocumentCounts(tenant),
+    getDocumentCounts(tenant, docStats),
     listTenantProjects(tenant).then((p) => p.length),
-    getConnectorHealth(tenant),
+    getConnectorHealth(tenant, docStats),
     getPayrollExposure(tenant),
     getDepartmentBreakdown(tenant),
     getQaSparkline(tenant),
   ]);
 
   const connected = health.filter((h) => h.healthy).length;
-  const documentCount = docs.gmailTotal + docs.githubIssues + docs.githubPrs;
+  const documentCount = Object.values(docStats).reduce((sum, stat) => sum + stat.count, 0);
   const qaSessions7d = sparkline.reduce((a, b) => a + b, 0);
 
   const learnedSignals = {

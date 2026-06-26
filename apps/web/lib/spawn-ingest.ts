@@ -16,6 +16,10 @@ function resolveTemporalWorkerDir(): string | null {
   return null;
 }
 
+function logPrefix(tenantId: string, provider: string): string {
+  return `[ingest ${tenantId.slice(0, 12)}…/${provider}]`;
+}
+
 /** Run ingest script in background when Temporal is unavailable. */
 export function spawnIngestResync(tenantId: string, provider: string): boolean {
   if (!isDirectIngestEnabled()) return false;
@@ -28,12 +32,40 @@ export function spawnIngestResync(tenantId: string, provider: string): boolean {
     const child = spawn('bun', ['run', script, tenantId, provider], {
       cwd: workerDir,
       detached: true,
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
       env: process.env,
     });
+
+    const pre = logPrefix(tenantId, provider);
+
+    child.stdout?.on('data', (chunk: Buffer) => {
+      for (const line of chunk.toString().split('\n').filter(Boolean)) {
+        console.log(`${pre} ${line}`);
+      }
+    });
+
+    child.stderr?.on('data', (chunk: Buffer) => {
+      for (const line of chunk.toString().split('\n').filter(Boolean)) {
+        console.error(`${pre} ${line}`);
+      }
+    });
+
+    child.on('exit', (code, signal) => {
+      if (code !== 0) {
+        console.error(`${pre} exited code=${code} signal=${signal}`);
+      } else {
+        console.log(`${pre} done`);
+      }
+    });
+
+    child.on('error', (err) => {
+      console.error(`${pre} spawn error:`, err);
+    });
+
     child.unref();
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`[spawn-ingest] error:`, err);
     return false;
   }
 }

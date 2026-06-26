@@ -14,7 +14,6 @@ export function isTemporalIngestEnabled(): boolean {
 export function isDirectIngestEnabled(): boolean {
   if (process.env.DISABLE_DIRECT_INGEST === 'true') return false;
   if (isRailwayDeploy()) return true;
-  if (isTemporalIngestEnabled()) return false;
   return process.env.ENABLE_DIRECT_INGEST !== 'false';
 }
 

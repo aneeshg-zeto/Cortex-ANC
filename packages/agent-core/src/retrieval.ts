@@ -1,5 +1,7 @@
 import { indexDocument, searchSimilar, type SearchResult } from '@cortex/graph-core';
 
+/** @deprecated Use retrieval-router.ts and queryDocumentsForUser() instead. */
+
 export type SourceCitation = {
   id: string;
   title: string;
@@ -22,6 +24,7 @@ export function toCitations(results: SearchResult[]): SourceCitation[] {
   }));
 }
 
+/** @deprecated Use retrieval-router.ts and queryDocumentsForUser() instead. */
 export async function retrieveContext(
   query: string,
   topK = 5,

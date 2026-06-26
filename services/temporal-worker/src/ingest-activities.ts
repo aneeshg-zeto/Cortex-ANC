@@ -31,9 +31,9 @@ import type { IngestActivityInput } from './types';
 
 const GOOGLE_PROVIDERS = ['google-workspace', 'gmail', 'google'];
 const GITHUB_PROVIDERS = ['github'];
-const FETCH_CONCURRENCY = 12;
-const NOTION_PAGE_CONCURRENCY = 8;
-const GITHUB_REPO_CONCURRENCY = 4;
+const FETCH_CONCURRENCY = 25;
+const NOTION_PAGE_CONCURRENCY = 12;
+const GITHUB_REPO_CONCURRENCY = 8;
 
 type GmailPart = {
   mimeType?: string;
@@ -316,8 +316,22 @@ export async function ingestGoogleCalendarActivity(input: IngestActivityInput): 
     });
     if (!listRes.ok) break;
 
+    type CalendarEvent = {
+      id: string;
+      summary?: string;
+      description?: string;
+      htmlLink?: string;
+      start?: { dateTime?: string; date?: string; timeZone?: string };
+      end?: { dateTime?: string; date?: string; timeZone?: string };
+      location?: string;
+      status?: string;
+      attendees?: Array<{ email: string; displayName?: string; responseStatus?: string }>;
+      organizer?: { email?: string; displayName?: string };
+      conferenceData?: { entryPoints?: Array<{ uri: string; entryPointType: string }> };
+    };
+
     const list = (await listRes.json()) as {
-      items?: Array<{ id: string; summary?: string; description?: string; htmlLink?: string }>;
+      items?: CalendarEvent[];
       nextPageToken?: string;
     };
 
@@ -330,6 +344,15 @@ export async function ingestGoogleCalendarActivity(input: IngestActivityInput): 
         source: 'calendar',
         type: 'event',
         url: event.htmlLink,
+        extraMeta: {
+          start: event.start,
+          end: event.end,
+          location: event.location,
+          status: event.status,
+          attendees: event.attendees,
+          organizer: event.organizer,
+          conferenceData: event.conferenceData,
+        },
       });
     }
     pageToken = list.nextPageToken;

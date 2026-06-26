@@ -6,6 +6,11 @@
 .env.*.local
 .env.deployment
 
+# Private / local notes (not for the repo)
+project-status.md
+tech-stack.md
+docs/phase1-better-auth-setup.md
+
 # Activepieces vendor (not part of Cortex repo)
 activepieces-main/
 packages/integration-core/src/connectors-adapted/

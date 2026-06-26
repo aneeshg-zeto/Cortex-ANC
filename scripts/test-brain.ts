@@ -15,9 +15,6 @@ if (existsSync(envPath)) {
 }
 
 const { runBrain } = await import('../packages/agent-core/src/brain/index.ts');
-const { ensureSeeded } = await import('../packages/agent-core/src/retrieval.ts');
-
-await ensureSeeded();
 
 const question = process.argv[2] ?? 'What is the status of the Acme project?';
 console.log('🧠 Question:', question);

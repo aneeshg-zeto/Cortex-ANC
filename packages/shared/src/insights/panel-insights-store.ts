@@ -71,8 +71,8 @@ export async function getPulseMetrics(tenant: TenantContext): Promise<PulseMetri
     queryWithTenant<{ open_prs: string; issues: string }>(
       tenant,
       `SELECT
-         COUNT(*) FILTER (WHERE metadata->>'type' = 'pull_request')::text AS open_prs,
-         COUNT(*) FILTER (WHERE metadata->>'type' = 'issue')::text AS issues
+         COUNT(*) FILTER (WHERE document_type = 'pull_request')::text AS open_prs,
+         COUNT(*) FILTER (WHERE document_type = 'issue')::text AS issues
        FROM cortex_documents
        WHERE tenant_id = $1 AND metadata->>'source' = 'github'`,
       [tenant.tenantId],
@@ -90,7 +90,7 @@ export async function getPulseMetrics(tenant: TenantContext): Promise<PulseMetri
       `SELECT COUNT(*)::text AS c FROM cortex_documents
        WHERE tenant_id = $1
          AND metadata->>'source' IN ('github', 'linear')
-         AND metadata->>'type' IN ('issue', 'task')
+         AND document_type IN ('issue', 'ticket')
          AND created_at < NOW() - INTERVAL '14 days'`,
       [tenant.tenantId],
     ),
@@ -179,7 +179,7 @@ export async function getBlockerRadar(tenant: TenantContext): Promise<BlockerIte
      FROM cortex_documents
      WHERE tenant_id = $1
        AND metadata->>'source' IN ('github', 'linear')
-       AND metadata->>'type' IN ('issue', 'task', 'pull_request')
+       AND document_type IN ('issue', 'pull_request', 'ticket')
        AND created_at < NOW() - INTERVAL '7 days'
      ORDER BY created_at ASC
      LIMIT 12`,
@@ -375,7 +375,7 @@ export async function getVelocityTracker(tenant: TenantContext) {
      FROM cortex_documents
      WHERE tenant_id = $1
        AND metadata->>'source' = 'github'
-       AND metadata->>'type' IN ('commit', 'pull_request')
+       AND document_type IN ('commit', 'pull_request')
      GROUP BY 1
      ORDER BY COUNT(*) DESC
      LIMIT 8`,

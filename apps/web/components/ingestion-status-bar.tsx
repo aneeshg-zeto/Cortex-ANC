@@ -21,6 +21,9 @@ const PROVIDER_LABELS: Record<string, string> = {
   drive: 'Drive',
 };
 
+const ACTIVE_POLL_MS = 5000;
+const IDLE_POLL_MS = 60000;
+
 function labelFor(provider: string): string {
   return PROVIDER_LABELS[provider] ?? provider;
 }
@@ -37,6 +40,9 @@ export function IngestionStatusBar() {
     if (hideOnOnboarding) return;
 
     let mounted = true;
+    let activeRun = false;
+    let t: ReturnType<typeof setInterval>;
+
     async function poll() {
       try {
         const res = await fetch('/api/ingestion/status');
@@ -52,9 +58,12 @@ export function IngestionStatusBar() {
           !data.active && data.providers.some((p) => p.status === 'completed' && p.processed > 0);
 
         if (running.length > 0) {
+          activeRun = true;
           if (hideTimer.current) clearTimeout(hideTimer.current);
           setProviders(running);
           setVisible(true);
+          clearInterval(t);
+          t = setInterval(poll, ACTIVE_POLL_MS);
         } else if (recentlyDone && visible) {
           setProviders(data.providers.filter((p) => p.status === 'completed'));
           if (!hideTimer.current) {
@@ -64,7 +73,10 @@ export function IngestionStatusBar() {
               hideTimer.current = null;
             }, 4000);
           }
-        } else if (!data.active && !recentlyDone) {
+        } else if (activeRun) {
+          activeRun = false;
+          clearInterval(t);
+          t = setInterval(poll, IDLE_POLL_MS);
           setVisible(false);
           setProviders([]);
         }
@@ -74,7 +86,7 @@ export function IngestionStatusBar() {
     }
 
     poll();
-    const t = setInterval(poll, 2000);
+    t = setInterval(poll, IDLE_POLL_MS);
     return () => {
       mounted = false;
       clearInterval(t);

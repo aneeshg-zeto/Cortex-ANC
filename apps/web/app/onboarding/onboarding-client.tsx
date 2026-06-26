@@ -78,13 +78,21 @@ export default function OnboardingClient() {
   useEffect(() => {
     if (!isLoaded || !tenantId) return;
     let cancelled = false;
+    let t: ReturnType<typeof setInterval>;
+    let idleSince: number | null = null;
+
     const poll = () => {
       if (cancelled || !tenantId) return;
       const q = `?tenant_id=${tenantId}`;
       void fetch('/api/onboarding/status')
         .then((r) => r.json())
         .then((data) => {
-          if (!cancelled) setStatus(data as OnboardingStatus);
+          if (!cancelled) {
+            setStatus(data as OnboardingStatus);
+            const s = data as OnboardingStatus;
+            if (s.status === 'running') idleSince = null;
+            else if (idleSince === null) idleSince = Date.now();
+          }
         })
         .catch(() => null);
       void fetch(`/api/admin/connectors-status${q}`)
@@ -105,9 +113,14 @@ export default function OnboardingClient() {
           if (!cancelled) setNeedsGitHubScope(Boolean(d?.needsVerification));
         })
         .catch(() => null);
+
+      if (idleSince !== null && Date.now() - idleSince > 30000) {
+        clearInterval(t);
+        t = setInterval(poll, 60000);
+      }
     };
     poll();
-    const t = setInterval(poll, 3000);
+    t = setInterval(poll, 3000);
     return () => {
       cancelled = true;
       clearInterval(t);

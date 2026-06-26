@@ -2,12 +2,15 @@ import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/auth';
 import { indexHrTenantFromContext } from '@/lib/index-hr-tenant';
+import { startIngestIfAvailable } from '@/lib/ingestion-runtime';
 import {
   getGitHubIngestRepos,
   getTenantGitHubScope,
   listAccessibleGitHubRepos,
   listTenantProjects,
+  queryWithTenant,
   setTenantGitHubScope,
+  upsertIngestionProgress,
 } from '@cortex/shared';
 import { canManageWorkspace } from '@cortex/auth';
 
@@ -68,6 +71,30 @@ export const POST = withAuth(
 
     await setTenantGitHubScope(tenant, repos);
     await indexHrTenantFromContext(tenant);
+
+    const workflowId = await startIngestIfAvailable({
+      tenantId: tenant.tenantId,
+      providers: ['github', 'google-workspace'],
+    });
+
+    if (workflowId) {
+      await queryWithTenant(
+        tenant,
+        `UPDATE tenant_onboarding SET status = 'running', step = 'ingesting', workflow_id = $2, updated_at = NOW() WHERE tenant_id = $1`,
+        [tenant.tenantId, workflowId],
+      );
+      // Create initial progress rows so the status bar shows sync immediately
+      await upsertIngestionProgress(tenant.tenantId, 'github', {
+        total_documents: 0,
+        processed_documents: 0,
+        status: 'running',
+      });
+      await upsertIngestionProgress(tenant.tenantId, 'google-workspace', {
+        total_documents: 0,
+        processed_documents: 0,
+        status: 'running',
+      });
+    }
 
     return NextResponse.json({
       ok: true,

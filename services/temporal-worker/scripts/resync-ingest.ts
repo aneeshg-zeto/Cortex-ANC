@@ -46,3 +46,4 @@ if (provider === 'all') {
 
 await markIngestCompleteActivity(tenantId);
 console.log(`[resync] done — ${total} document chunks indexed`);
+process.exit(0);

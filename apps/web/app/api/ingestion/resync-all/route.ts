@@ -32,17 +32,6 @@ export const POST = withAuth(
       });
     }
 
-    const progressKeys = connected.map((p) => (p === 'google' ? 'google-workspace' : p));
-    await Promise.all(
-      progressKeys.map((provider) =>
-        upsertIngestionProgress(tenant.tenantId, provider, {
-          status: 'running',
-          total_documents: 0,
-          processed_documents: 0,
-        }),
-      ),
-    );
-
     let workflowId = await startResyncAllIfAvailable(tenant.tenantId);
     let mode: 'temporal' | 'direct' | 'skipped' = 'temporal';
 
@@ -64,6 +53,17 @@ export const POST = withAuth(
       workflowId = `direct-all-${Date.now()}`;
       mode = 'direct';
     }
+
+    const progressKeys = connected.map((p) => (p === 'google' ? 'google-workspace' : p));
+    await Promise.all(
+      progressKeys.map((provider) =>
+        upsertIngestionProgress(tenant.tenantId, provider, {
+          status: 'running',
+          total_documents: 0,
+          processed_documents: 0,
+        }),
+      ),
+    );
 
     await queryWithTenant(
       tenant,
