@@ -8,18 +8,11 @@ import { authClient } from '@/lib/auth-client';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 type LoginFormProps = {
-  githubEnabled?: boolean;
   googleEnabled?: boolean;
   employeeDevEnabled?: boolean;
 };
 
-type SignInConfig = {
-  github: boolean;
-  google: boolean;
-};
-
 export default function LoginForm({
-  githubEnabled = false,
   googleEnabled = false,
   employeeDevEnabled = false,
 }: LoginFormProps) {
@@ -32,16 +25,13 @@ export default function LoginForm({
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [oauth, setOauth] = useState<SignInConfig>({
-    github: githubEnabled,
-    google: googleEnabled,
-  });
+  const [googleOAuth, setGoogleOAuth] = useState(googleEnabled);
 
   useEffect(() => {
     fetch('/api/auth/sign-in-config', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: SignInConfig | null) => {
-        if (data) setOauth(data);
+      .then((data: { google?: boolean } | null) => {
+        if (data) setGoogleOAuth(Boolean(data.google));
       })
       .catch(() => {});
   }, []);
@@ -98,32 +88,27 @@ export default function LoginForm({
     }
   }
 
-  async function handleSocial(provider: 'github' | 'google') {
-    const enabled = provider === 'github' ? oauth.github : oauth.google;
-    if (!enabled) {
-      setError(
-        `${provider === 'github' ? 'GitHub' : 'Google'} sign-in is not configured on this server.`,
-      );
+  async function handleGoogleSignIn() {
+    if (!googleOAuth) {
+      setError('Google sign-in is not configured on this server.');
       return;
     }
     setLoading(true);
     setError('');
     try {
       const res = await authClient.signIn.social({
-        provider,
+        provider: 'google',
         callbackURL: '/auth/continue',
       });
       if (res.error) {
-        setError(res.error.message ?? `${provider} sign-in failed`);
+        setError(res.error.message ?? 'Google sign-in failed');
         setLoading(false);
       }
     } catch {
-      setError(`${provider === 'github' ? 'GitHub' : 'Google'} sign-in failed`);
+      setError('Google sign-in failed');
       setLoading(false);
     }
   }
-
-  const showSocial = oauth.github || oauth.google;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
@@ -138,40 +123,27 @@ export default function LoginForm({
           {mode === 'signin' ? 'Sign in' : 'Create workspace'}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {showSocial
-            ? 'Continue with Google or GitHub — then connect repos and tools in onboarding.'
+          {googleOAuth
+            ? 'Continue with Google — then connect your workspace in onboarding.'
             : 'Sign in with email to access your workspace.'}
         </p>
 
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
-        {showSocial && (
-          <div className="mt-8 space-y-3">
-            {oauth.google && (
-              <button
-                type="button"
-                onClick={() => handleSocial('google')}
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-2 border border-zinc-700 bg-white px-4 py-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 disabled:opacity-50"
-              >
-                Continue with Google
-              </button>
-            )}
-
-            {oauth.github && (
-              <button
-                type="button"
-                onClick={() => handleSocial('github')}
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-2 border border-border bg-card px-4 py-3 text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                Continue with GitHub
-              </button>
-            )}
+        {googleOAuth && (
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 border border-zinc-700 bg-white px-4 py-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 disabled:opacity-50"
+            >
+              Continue with Google
+            </button>
           </div>
         )}
 
-        {showSocial && (
+        {googleOAuth && (
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
             <span className="text-xs text-muted-foreground">or use email</span>
@@ -179,7 +151,7 @@ export default function LoginForm({
           </div>
         )}
 
-        <form onSubmit={handleEmailSubmit} className={showSocial ? 'space-y-4' : 'mt-8 space-y-4'}>
+        <form onSubmit={handleEmailSubmit} className={googleOAuth ? 'space-y-4' : 'mt-8 space-y-4'}>
           {mode === 'signup' && (
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-muted-foreground">

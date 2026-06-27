@@ -71,6 +71,8 @@ export const OAUTH_PROVIDER_CONFIG: Record<ExtendedOAuthProvider, OAuthConfig> =
       'https://www.googleapis.com/auth/contacts.readonly',
       'https://www.googleapis.com/auth/tasks.readonly',
       'https://www.googleapis.com/auth/spreadsheets.readonly',
+      'https://www.googleapis.com/auth/forms.body.readonly',
+      'https://www.googleapis.com/auth/forms.responses.readonly',
     ],
     extraAuthParams: { access_type: 'offline', prompt: 'consent' },
     healthProvider: 'google-workspace',

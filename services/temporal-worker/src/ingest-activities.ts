@@ -135,15 +135,17 @@ export async function ingestGoogleWorkspaceActivity(input: IngestActivityInput):
     processed_documents: 0,
   });
 
-  const [gmail, drive, calendar, contacts, tasks] = await Promise.all([
+  const [gmail, drive, calendar, contacts, tasks, forms, meetNotes] = await Promise.all([
     ingestGmailActivity({ tenantId: input.tenantId, since }),
     ingestGoogleDriveActivity({ tenantId: input.tenantId, since }),
     ingestGoogleCalendarActivity({ tenantId: input.tenantId, since }),
     ingestGoogleContactsActivity({ tenantId: input.tenantId, since }),
     ingestGoogleTasksActivity({ tenantId: input.tenantId, since }),
+    ingestGoogleFormsActivity({ tenantId: input.tenantId, since }),
+    ingestGoogleMeetNotesActivity({ tenantId: input.tenantId, since }),
   ]);
 
-  const total = gmail + drive + calendar + contacts + tasks;
+  const total = gmail + drive + calendar + contacts + tasks + forms + meetNotes;
   await upsertIngestionProgress(input.tenantId, 'google-workspace', {
     status: 'completed',
     total_documents: total,
@@ -245,6 +247,21 @@ export async function ingestGoogleDriveActivity(input: IngestActivityInput): Pro
     'application/vnd.google-apps.document': 'text/plain',
     'application/vnd.google-apps.spreadsheet': 'text/csv',
     'application/vnd.google-apps.presentation': 'text/plain',
+    'application/vnd.google-apps.form': 'text/plain',
+  };
+
+  const MIME_TO_TYPE: Record<string, string> = {
+    'application/vnd.google-apps.document': 'page',
+    'application/vnd.google-apps.spreadsheet': 'file',
+    'application/vnd.google-apps.presentation': 'page',
+    'application/vnd.google-apps.form': 'page',
+  };
+
+  const MIME_TO_SOURCE: Record<string, string> = {
+    'application/vnd.google-apps.document': 'google_drive',
+    'application/vnd.google-apps.spreadsheet': 'google_drive',
+    'application/vnd.google-apps.presentation': 'google_drive',
+    'application/vnd.google-apps.form': 'google_drive',
   };
 
   const docResults = await mapInParallel(allFiles, FETCH_CONCURRENCY, async (file) => {
@@ -276,9 +293,10 @@ export async function ingestGoogleDriveActivity(input: IngestActivityInput): Pro
       docId: `${input.tenantId}:drive:${file.id}`,
       text,
       title: file.name,
-      source: 'drive',
-      type: 'file',
+      source: MIME_TO_SOURCE[file.mimeType] ?? 'google_drive',
+      type: MIME_TO_TYPE[file.mimeType] ?? 'file',
       url: `https://drive.google.com/file/d/${file.id}/view`,
+      extraMeta: { mimeType: file.mimeType },
     };
     return doc;
   });
@@ -443,6 +461,138 @@ export async function ingestGoogleTasksActivity(input: IngestActivityInput): Pro
 
   const count = await indexIngestDocs(docs, chunkText);
   await updateOnboarding(input.tenantId, { tasks: count });
+  return count;
+}
+
+async function listDriveFiles(
+  token: string,
+  query: string,
+): Promise<Array<{ id: string; name: string; mimeType: string }>> {
+  const allFiles: Array<{ id: string; name: string; mimeType: string }> = [];
+  let pageToken: string | undefined;
+
+  do {
+    const url = new URL('https://www.googleapis.com/drive/v3/files');
+    url.searchParams.set('pageSize', '200');
+    url.searchParams.set('fields', 'nextPageToken,files(id,name,mimeType)');
+    url.searchParams.set('q', query);
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+
+    const listRes = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!listRes.ok) break;
+    const list = (await listRes.json()) as {
+      files?: Array<{ id: string; name: string; mimeType: string }>;
+      nextPageToken?: string;
+    };
+    allFiles.push(...(list.files ?? []));
+    pageToken = list.nextPageToken;
+  } while (pageToken);
+
+  return allFiles;
+}
+
+export async function ingestGoogleFormsActivity(input: IngestActivityInput): Promise<number> {
+  const token = await getValidAccessToken('google', input.tenantId);
+  if (!token) return 0;
+
+  const since = await resolveSince(input.tenantId, 'google', input.since);
+  const sinceClause = since ? ` and modifiedTime > '${since}'` : '';
+  const forms = await listDriveFiles(
+    token,
+    `mimeType='application/vnd.google-apps.form' and trashed=false${sinceClause}`,
+  );
+
+  const docs: IngestDocInput[] = [];
+
+  await mapInParallel(forms, FETCH_CONCURRENCY, async (form) => {
+    const formRes = await fetch(`https://forms.googleapis.com/v1/forms/${form.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    let description = '';
+    if (formRes.ok) {
+      const meta = (await formRes.json()) as {
+        info?: { title?: string; description?: string };
+      };
+      description = meta.info?.description ?? '';
+    }
+
+    const responsesRes = await fetch(`https://forms.googleapis.com/v1/forms/${form.id}/responses`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!responsesRes.ok) return;
+    const responses = (await responsesRes.json()) as {
+      responses?: Array<{
+        responseId?: string;
+        lastSubmittedTime?: string;
+        answers?: Record<string, { textAnswers?: { answers?: Array<{ value?: string }> } }>;
+      }>;
+    };
+
+    for (const response of responses.responses ?? []) {
+      if (input.since && response.lastSubmittedTime && response.lastSubmittedTime < input.since) {
+        continue;
+      }
+      const answerText = Object.values(response.answers ?? {})
+        .flatMap((a) => a.textAnswers?.answers?.map((v) => v.value ?? '') ?? [])
+        .filter(Boolean)
+        .join('\n');
+      const text = `${form.name}\n${description}\n${answerText}`.trim();
+      if (!text) continue;
+      docs.push({
+        tenantId: input.tenantId,
+        docId: `${input.tenantId}:form:${form.id}:${response.responseId ?? 'unknown'}`,
+        text: text.slice(0, 50_000),
+        title: form.name,
+        source: 'google_drive',
+        type: 'page',
+        url: `https://docs.google.com/forms/d/${form.id}/edit`,
+        extraMeta: { kind: 'form_response', formId: form.id },
+      });
+    }
+  });
+
+  const count = await indexIngestDocs(docs, chunkText);
+  await updateOnboarding(input.tenantId, { forms: count });
+  return count;
+}
+
+export async function ingestGoogleMeetNotesActivity(input: IngestActivityInput): Promise<number> {
+  const token = await getValidAccessToken('google', input.tenantId);
+  if (!token) return 0;
+
+  const since = await resolveSince(input.tenantId, 'google', input.since);
+  const sinceClause = since ? ` and modifiedTime > '${since}'` : '';
+  const noteFiles = await listDriveFiles(
+    token,
+    `mimeType='application/vnd.google-apps.document' and trashed=false and (name contains 'Meeting notes' or name contains 'Notes by Gemini' or name contains 'Meet')${sinceClause}`,
+  );
+
+  const docs: IngestDocInput[] = [];
+
+  await mapInParallel(noteFiles, FETCH_CONCURRENCY, async (file) => {
+    const exportRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=${encodeURIComponent('text/plain')}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!exportRes.ok) return;
+    const text = (await exportRes.text()).slice(0, 50_000).trim();
+    if (!text) return;
+    docs.push({
+      tenantId: input.tenantId,
+      docId: `${input.tenantId}:meet-notes:${file.id}`,
+      text,
+      title: file.name,
+      source: 'google_drive',
+      type: 'page',
+      url: `https://drive.google.com/file/d/${file.id}/view`,
+      extraMeta: { kind: 'meet_notes' },
+    });
+  });
+
+  const count = await indexIngestDocs(docs, chunkText);
+  await updateOnboarding(input.tenantId, { meetNotes: count });
   return count;
 }
 

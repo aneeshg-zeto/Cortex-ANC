@@ -1,6 +1,6 @@
 'use client';
 
-import { needsRolePasskey, type RolePick } from '@cortex/auth';
+import { needsRolePasskey, normalizeCompanyName, type RolePick } from '@cortex/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -67,7 +67,7 @@ export default function RoleContinueClient() {
   const searchParams = useSearchParams();
   const { user, isLoaded } = useCortexUser();
   const [step, setStep] = useState<Step>('company');
-  const [code, setCode] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [rolePick, setRolePick] = useState<RolePick>('ceo');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -112,10 +112,12 @@ export default function RoleContinueClient() {
   function handleCompanyNext(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!code.trim()) {
-      setError('Enter your company code');
+    const normalized = normalizeCompanyName(companyName);
+    if (!normalized) {
+      setError('Enter your company name');
       return;
     }
+    setCompanyName(normalized);
     setStep('role');
   }
 
@@ -128,7 +130,7 @@ export default function RoleContinueClient() {
       const res = await fetch('/api/auth/assign-role', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, rolePick }),
+        body: JSON.stringify({ companyName: normalizeCompanyName(companyName), rolePick }),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -136,7 +138,7 @@ export default function RoleContinueClient() {
       };
 
       if (!res.ok) {
-        setError(data.error ?? 'Invalid company code or role');
+        setError(data.error ?? 'Invalid company name or role');
         return;
       }
 
@@ -157,26 +159,31 @@ export default function RoleContinueClient() {
       <div className="dark-card w-full max-w-md p-8">
         {step === 'company' ? (
           <>
-            <h1 className="text-xl font-semibold text-foreground">Enter your company code</h1>
+            <h1 className="text-xl font-semibold text-foreground">Enter your company name</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Signed in as <span className="text-foreground/80">{user.email}</span>.
+              Signed in as <span className="text-foreground/80">{user.email}</span>. CEO, Client,
+              and HR at the same company must enter the same name (e.g. Zeto).
             </p>
 
             <form onSubmit={handleCompanyNext} className="mt-6 space-y-4">
               <div>
                 <label
-                  htmlFor="role-code"
+                  htmlFor="company-name"
                   className="block text-sm font-medium text-muted-foreground"
                 >
-                  Company code
+                  Company name
                 </label>
                 <input
-                  id="role-code"
-                  type="password"
-                  autoComplete="off"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="Company code"
+                  id="company-name"
+                  type="text"
+                  autoComplete="organization"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  onBlur={() => {
+                    const normalized = normalizeCompanyName(companyName);
+                    if (normalized) setCompanyName(normalized);
+                  }}
+                  placeholder="e.g. Zeto"
                   className="input-dark mt-1.5"
                   required
                   autoFocus

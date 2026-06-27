@@ -40,7 +40,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     category: 'productivity',
     authType: 'oauth2',
     oauthProvider: 'google',
-    description: 'Gmail, Drive, Calendar, Contacts, Tasks',
+    description: 'Gmail, Drive, Docs, Sheets, Calendar, Contacts, Tasks, Forms, Meet notes',
     ingestReady: true,
     priority: 'A',
     logoUrl: `${AP_CDN}/gmail.png`,

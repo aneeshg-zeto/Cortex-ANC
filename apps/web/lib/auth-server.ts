@@ -26,11 +26,6 @@ function trustedOrigins(): string[] {
 
 function socialProviders(): Record<string, { clientId: string; clientSecret: string }> {
   const providers: Record<string, { clientId: string; clientSecret: string }> = {};
-  const githubId = process.env.GITHUB_CLIENT_ID?.trim();
-  const githubSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
-  if (githubId && githubSecret) {
-    providers.github = { clientId: githubId, clientSecret: githubSecret };
-  }
   const googleId = process.env.GOOGLE_CLIENT_ID?.trim();
   const googleSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
   if (googleId && googleSecret) {

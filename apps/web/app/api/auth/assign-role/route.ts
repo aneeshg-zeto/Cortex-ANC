@@ -16,6 +16,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 type AssignRoleBody = {
   code?: string;
+  companyName?: string;
   rolePick?: RolePick;
   /** @deprecated use rolePick */
   executivePick?: ExecutiveRolePick;
@@ -29,25 +30,23 @@ export const POST = withAuth(async (request, { user, tenant }) => {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const code = body.code?.trim() ?? '';
-  if (!code) {
-    return NextResponse.json({ error: 'Company code is required' }, { status: 400 });
+  const companyInput = (body.companyName ?? body.code ?? '').trim();
+  if (!companyInput) {
+    return NextResponse.json({ error: 'Company name is required' }, { status: 400 });
   }
 
   const rolePick = body.rolePick ?? body.executivePick;
-  const role = resolveRoleFromPasskey(code, rolePick);
+  const role = resolveRoleFromPasskey(companyInput, rolePick);
   if (!role) {
     return NextResponse.json(
       {
-        error: rolePick
-          ? 'Invalid company code'
-          : 'Invalid company code — select your role and try again',
+        error: rolePick ? 'Invalid company name' : 'Select your role and enter your company name',
       },
       { status: 401 },
     );
   }
 
-  const targetTenantId = await resolveCompanyTenantId(pool, code, tenant.tenantId, role);
+  const targetTenantId = await resolveCompanyTenantId(pool, companyInput, tenant.tenantId, role);
   const tenantCtx = toTenantContext({ ...user, tenantId: targetTenantId, role });
 
   let employeeId: string | null = null;
