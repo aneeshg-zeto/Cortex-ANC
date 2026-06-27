@@ -14,7 +14,6 @@ import {
 
 import { AppShell } from '@/components/app-shell';
 import { DeskToolbar } from '@/components/desk-toolbar';
-import { TodayCompass } from '@/components/executive-desk/compass';
 import { useActiveWorkspace } from '@/hooks/use-active-workspace';
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
@@ -133,7 +132,6 @@ export function ExecutiveDeskPage() {
             Syncing your data… questions may not have full context until sync completes.
           </div>
         )}
-        <TodayCompass />
       </div>
       <ChatWindow variant="dark" className="h-full">
         {messages.map((message) => (

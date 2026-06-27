@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-import { queryWithTenant } from '../db/tenant-pool';
+import { countMeetingsToday } from '../meetings/meetings-store';
+import { getPool, queryWithTenant } from '../db/tenant-pool';
 import type { TenantContext } from '../tenant/types';
 
 export type PulseMetric = {
@@ -61,7 +62,8 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 export async function getPulseMetrics(tenant: TenantContext): Promise<PulseMetric[]> {
-  const [payroll, github, gmail, blockers, connectors] = await Promise.all([
+  const pool = getPool();
+  const [payroll, github, gmail, blockers, connectors, meetingsToday] = await Promise.all([
     queryWithTenant<{ total: string }>(
       tenant,
       `SELECT COALESCE(SUM(salary_monthly), 0)::text AS total
@@ -102,6 +104,7 @@ export async function getPulseMetrics(tenant: TenantContext): Promise<PulseMetri
        FROM connector_health WHERE tenant_id = $1`,
       [tenant.tenantId],
     ),
+    countMeetingsToday(tenant.tenantId, pool).catch(() => 0),
   ]);
 
   const burn = Number(payroll.rows[0]?.total ?? 0);
@@ -110,6 +113,7 @@ export async function getPulseMetrics(tenant: TenantContext): Promise<PulseMetri
   const gmailWeek = Number(gmail.rows[0]?.week ?? 0);
   const stuck = Number(blockers.rows[0]?.c ?? 0);
   const connected = Number(connectors.rows[0]?.connected ?? 0);
+  const todayMeetings = typeof meetingsToday === 'number' ? meetingsToday : 0;
 
   const fmtBurn = burn >= 100_000 ? `₹${(burn / 100_000).toFixed(1)}L` : `₹${Math.round(burn)}`;
 
@@ -155,6 +159,13 @@ export async function getPulseMetrics(tenant: TenantContext): Promise<PulseMetri
       value: String(connected),
       sub: 'Synced tools',
       status: connected > 0 ? 'ok' : 'warn',
+    },
+    {
+      id: 'meetings',
+      label: 'Meetings today',
+      value: String(todayMeetings),
+      sub: 'On calendar',
+      status: todayMeetings > 0 ? 'ok' : 'neutral',
     },
   ];
 }

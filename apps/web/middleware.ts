@@ -15,6 +15,9 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith('/api/')) return NextResponse.next();
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
   if (isPublic(pathname)) return NextResponse.next();
 
   if (!hasSessionCookie(request)) {

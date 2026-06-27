@@ -32,6 +32,10 @@ export function canAccessPanel(role: CortexRole): boolean {
   return role === 'super_admin' || role === 'ceo' || role === 'client';
 }
 
+export function canAccessMeetings(role: CortexRole): boolean {
+  return role === 'super_admin' || role === 'ceo' || role === 'client';
+}
+
 /** CEO or client can approve employee onboarding and write actions (super_admin included silently). */
 export function canReviewApprovals(role: CortexRole): boolean {
   return role === 'ceo' || role === 'client' || role === 'super_admin';

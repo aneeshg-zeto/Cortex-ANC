@@ -4,12 +4,14 @@ import { CONNECTOR_SOURCES } from '../constants';
 import GmailAdapter from './gmail.adapter';
 import GitHubAdapter from './github.adapter';
 import GoogleCalendarAdapter from './google-calendar.adapter';
+import GoogleDriveAdapter from './google-drive.adapter';
 import { createStubAdapter } from './stubs/stub.adapter';
 
 export { ConnectorAuthError, ConnectorRateLimitError } from './connector-http';
 export { default as GitHubAdapter } from './github.adapter';
 export { default as GmailAdapter } from './gmail.adapter';
 export { default as GoogleCalendarAdapter } from './google-calendar.adapter';
+export { default as GoogleDriveAdapter } from './google-drive.adapter';
 
 /*
  * ADAPTER_REGISTRY
@@ -25,12 +27,13 @@ export { default as GoogleCalendarAdapter } from './google-calendar.adapter';
  */
 
 const STUB_SOURCES = CONNECTOR_SOURCES.filter(
-  (s) => !['github', 'gmail', 'google_calendar'].includes(s),
+  (s) => !['github', 'gmail', 'google_calendar', 'google_drive'].includes(s),
 );
 
 export const ADAPTER_REGISTRY: Partial<Record<ConnectorSource, ConnectorAdapter>> = {
   github: new GitHubAdapter(),
   gmail: new GmailAdapter(),
   google_calendar: new GoogleCalendarAdapter(),
+  google_drive: new GoogleDriveAdapter(),
   ...Object.fromEntries(STUB_SOURCES.map((source) => [source, createStubAdapter(source)])),
 };

@@ -46,6 +46,14 @@
       "types": "./dist/studio/types.d.ts",
       "import": "./dist/studio/types.js"
     },
+    "./meetings/types": {
+      "types": "./dist/meetings/types.d.ts",
+      "import": "./dist/meetings/types.js"
+    },
+    "./meetings/constants": {
+      "types": "./dist/meetings/constants.d.ts",
+      "import": "./dist/meetings/constants.js"
+    },
     "./ingestion/adapter": {
       "types": "./dist/ingestion/adapter.d.ts",
       "import": "./dist/ingestion/adapter.js"

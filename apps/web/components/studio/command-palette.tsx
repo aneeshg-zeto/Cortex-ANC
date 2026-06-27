@@ -16,6 +16,7 @@ type CommandItem = {
 const STATIC_COMMANDS: Omit<CommandItem, 'action'>[] = [
   { id: 'desk', label: 'Executive Desk', href: '/executive-desk', group: 'Navigate' },
   { id: 'email', label: 'Email Desk', href: '/email-desk', group: 'Navigate' },
+  { id: 'meetings', label: 'Meetings', href: '/meetings', group: 'Navigate' },
   { id: 'connectors', label: 'Connectors', href: '/connectors', group: 'Navigate' },
   { id: 'panel', label: 'Panel overview', href: '/panel', group: 'Navigate' },
   { id: 'studio', label: 'Studio', href: '/studio', group: 'Navigate' },

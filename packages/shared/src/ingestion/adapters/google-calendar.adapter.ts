@@ -9,6 +9,7 @@ import type {
   UnifiedDocument,
 } from '../adapter';
 import { computeContentHash, computeDocId, semanticChunk } from '../normaliser';
+import { inferConferencePlatform } from '../../meetings/constants';
 
 import { connectorFetch } from './connector-http';
 
@@ -70,9 +71,22 @@ function attendeeEntityRefs(attendees: CalendarPerson[] | undefined): EntityRef[
   return refs;
 }
 
-function asCalendarEvent(raw: unknown): CalendarEvent | null {
-  if (!raw || typeof raw !== 'object') return null;
-  return raw as CalendarEvent;
+function extractMeetingUrlFromConference(conf: Record<string, unknown> | undefined): string | null {
+  const entries = conf?.entryPoints;
+  if (!Array.isArray(entries)) return null;
+  for (const ep of entries) {
+    const e = ep as Record<string, unknown>;
+    const uri = e.uri;
+    if (typeof uri === 'string' && uri.trim()) return uri.trim();
+  }
+  return null;
+}
+
+function isoFromCalendarField(field: unknown): string | undefined {
+  if (!field || typeof field !== 'object') return undefined;
+  const f = field as Record<string, unknown>;
+  const dt = f.dateTime ?? f.date;
+  return typeof dt === 'string' ? dt : undefined;
 }
 
 export default class GoogleCalendarAdapter implements ConnectorAdapter {
@@ -118,6 +132,14 @@ export default class GoogleCalendarAdapter implements ConnectorAdapter {
     const updatedAt = event.updated ? new Date(event.updated) : new Date();
     const createdAt = event.created ? new Date(event.created) : updatedAt;
 
+    const startIso = isoFromCalendarField(event.start);
+    const endIso = isoFromCalendarField(event.end);
+    const meetingUrl = extractMeetingUrlFromConference(event.conferenceData);
+    const conferencePlatform = inferConferencePlatform(meetingUrl, {
+      conferenceData: event.conferenceData,
+      location: event.location,
+    });
+
     return {
       id: computeDocId('google_calendar', event.id, ctx.tenantId),
       tenantId: ctx.tenantId,
@@ -132,13 +154,20 @@ export default class GoogleCalendarAdapter implements ConnectorAdapter {
       contentHash: computeContentHash(contentText || title),
       type: 'calendar_event',
       metadata: {
+        title,
         start: event.start,
         end: event.end,
+        start_time: startIso,
+        end_time: endIso,
+        meeting_url: meetingUrl,
+        conference_platform: conferencePlatform,
         location: event.location,
         attendees: event.attendees,
         organizer: event.organizer,
         status: event.status,
         conferenceData: event.conferenceData,
+        source: 'google_calendar',
+        type: 'calendar_event',
       },
       createdAt,
       updatedAt,
@@ -153,4 +182,9 @@ export default class GoogleCalendarAdapter implements ConnectorAdapter {
     const event = asCalendarEvent(raw.raw);
     return event?.updated ?? new Date().toISOString();
   }
+}
+
+function asCalendarEvent(raw: unknown): CalendarEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  return raw as CalendarEvent;
 }

@@ -161,8 +161,7 @@ export default function RoleContinueClient() {
           <>
             <h1 className="text-xl font-semibold text-foreground">Enter your company name</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Signed in as <span className="text-foreground/80">{user.email}</span>. CEO, Client,
-              and HR at the same company must enter the same name (e.g. Zeto).
+              Signed in as <span className="text-foreground/80">{user.email}</span>
             </p>
 
             <form onSubmit={handleCompanyNext} className="mt-6 space-y-4">

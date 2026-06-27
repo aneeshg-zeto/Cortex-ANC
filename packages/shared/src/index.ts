@@ -58,3 +58,6 @@ export * from './insights/panel-insights-store';
 export * from './insights/hr-insights-store';
 export * from './studio/types';
 export * from './studio/store';
+export * from './meetings/types';
+export * from './meetings/constants';
+export * from './meetings/meetings-store';

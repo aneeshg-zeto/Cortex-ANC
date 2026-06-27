@@ -15,6 +15,7 @@ import type pg from 'pg';
 
 import { getPool } from '../packages/shared/src/db/tenant-pool.ts';
 import { seedHrDemoData } from '../packages/shared/src/hr/hr-demo-seed.ts';
+import { syncCalendarEventsToMeetings } from '../packages/shared/src/meetings/meetings-store.ts';
 
 const envPath = path.resolve(import.meta.dir, '../.env');
 if (existsSync(envPath)) {
@@ -315,6 +316,10 @@ async function clearTenantDemo(client: pg.PoolClient, tenantId: string) {
     await client.query(`DELETE FROM workflows WHERE tenant_id = $1`, [tenantId]);
     await client.query(`DELETE FROM studio_notebooks WHERE tenant_id = $1`, [tenantId]);
     await client.query(`DELETE FROM user_layouts WHERE tenant_id = $1`, [tenantId]);
+    await client.query(`DELETE FROM meeting_documents WHERE tenant_id = $1`, [tenantId]);
+    await client.query(`DELETE FROM call_recordings WHERE tenant_id = $1`, [tenantId]);
+    await client.query(`DELETE FROM meeting_contacts WHERE tenant_id = $1`, [tenantId]);
+    await client.query(`DELETE FROM meeting_intelligence WHERE tenant_id = $1`, [tenantId]);
   });
 }
 
@@ -439,6 +444,66 @@ async function seed(client: pg.PoolClient, tenantId: string, userId: string | nu
           ],
         );
       }
+    }
+
+    const now = Date.now();
+    const calendarEvents = [
+      {
+        id: 'zeto-cal-standup',
+        title: 'Engineering standup',
+        startMs: now + 60 * 60 * 1000,
+        durationMin: 30,
+        location: 'Google Meet',
+        meetUrl: 'https://meet.google.com/zeto-standup',
+        attendees: ['aarav@zeto.studio', 'priya@zeto.studio'],
+      },
+      {
+        id: 'zeto-cal-acme',
+        title: 'Acme Enterprise — Q2 business review',
+        startMs: now + 3 * 60 * 60 * 1000,
+        durationMin: 60,
+        location: 'Zoom',
+        meetUrl: 'https://zoom.us/j/5551234567',
+        attendees: ['ceo@acme.com', 'sarah.chen@acme.com'],
+      },
+      {
+        id: 'zeto-cal-board',
+        title: 'Board prep sync',
+        startMs: now + 24 * 60 * 60 * 1000,
+        durationMin: 45,
+        location: 'Conference Room A',
+        meetUrl: null,
+        attendees: ['cfo@zeto.studio', 'cto@zeto.studio'],
+      },
+    ] as const;
+
+    for (const event of calendarEvents) {
+      const startAt = new Date(event.startMs);
+      const endAt = new Date(event.startMs + event.durationMin * 60 * 1000);
+      await client.query(
+        `INSERT INTO cortex_documents (id, content, metadata, tenant_id, source_id, document_type, created_at)
+         VALUES ($1, $2, $3::jsonb, $4, $5, 'calendar_event', NOW())
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          event.id,
+          `${event.title}\nCalendar event for Cortex demo.`,
+          JSON.stringify({
+            source: 'google_calendar',
+            type: 'calendar_event',
+            title: event.title,
+            start: { dateTime: startAt.toISOString() },
+            end: { dateTime: endAt.toISOString() },
+            start_time: startAt.toISOString(),
+            end_time: endAt.toISOString(),
+            location: event.location,
+            meeting_url: event.meetUrl,
+            organizer: { email: 'aneeshg@zeto.studio' },
+            attendees: event.attendees.map((email) => ({ email })),
+          }),
+          tenantId,
+          event.id,
+        ],
+      );
     }
 
     // Knowledge graph
@@ -586,10 +651,12 @@ async function main() {
     await clearTenantDemo(client, tenantId);
     await seed(client, tenantId, userId);
     await seedHrDemoData(tenantId, { publishedByUserId: userId });
+    const { synced, updated } = await syncCalendarEventsToMeetings(tenantId, pool);
     console.log('');
     console.log('✅ Zeto Studio demo seeded');
     console.log(`   • ${EMPLOYEES.length} employees (Scaling tier KPIs)`);
     console.log(`   • ${CONNECTORS.length} connectors connected`);
+    console.log(`   • ${synced + updated} meetings synced from calendar`);
     console.log('   • Documents, graph nodes, Q&A logs, studio layout');
     console.log('');
     console.log('Next:');

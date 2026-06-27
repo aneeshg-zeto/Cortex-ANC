@@ -225,7 +225,7 @@ export default function OnboardingClient() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground">
         <p className="text-muted-foreground">Sign in with a CEO or Client role to connect tools.</p>
         <Link href="/auth/continue" className="text-[#14b8a6] hover:underline">
-          Enter your role code →
+          Continue setup →
         </Link>
       </div>
     );
