@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/auth';
 import { canAccessPanel } from '@cortex/auth';
-import { listNotebooks, upsertNotebook, type NotebookBlock } from '@cortex/shared';
+import {
+  listNotebooks,
+  upsertNotebook,
+  indexNotebookForBrain,
+  type NotebookBlock,
+} from '@cortex/shared';
 
 export const GET = withAuth(
   async (_request, { tenant, user }) => {
@@ -34,6 +39,11 @@ export const POST = withAuth(
     const title = body.title?.trim() || 'Untitled notebook';
     const blocks = Array.isArray(body.blocks) ? body.blocks : [];
     const notebook = await upsertNotebook(tenant, id, user.id, title, blocks);
+    try {
+      await indexNotebookForBrain(tenant, id, user.id, title, blocks);
+    } catch (err) {
+      console.error('[studio/notebooks] brain index failed', err);
+    }
     return NextResponse.json({ notebook });
   },
   ['admin:read'],

@@ -4,7 +4,6 @@ import { useSearchParams } from 'next/navigation';
 
 import { DashboardBuilder } from '@/components/studio/dashboard-builder';
 import { GraphExplorerView } from '@/components/studio/graph-explorer-view';
-import { LineageGraph } from '@/components/studio/lineage-graph';
 import { NotebookEditor } from '@/components/studio/notebook-editor';
 import { WorkflowCanvas } from '@/components/studio/workflow-canvas';
 
@@ -13,7 +12,6 @@ const TABS = [
   { id: 'workflows', label: 'Workflows' },
   { id: 'notebook', label: 'Notebook' },
   { id: 'graph', label: 'Graph' },
-  { id: 'lineage', label: 'Lineage' },
 ] as const;
 
 export type StudioTabId = (typeof TABS)[number]['id'];
@@ -48,7 +46,6 @@ export function StudioClient() {
         {tab === 'workflows' && <WorkflowCanvas />}
         {tab === 'notebook' && <NotebookEditor />}
         {tab === 'graph' && <GraphExplorerView />}
-        {tab === 'lineage' && <LineageGraph />}
       </div>
     </div>
   );

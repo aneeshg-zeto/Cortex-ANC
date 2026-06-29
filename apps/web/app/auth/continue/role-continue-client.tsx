@@ -1,11 +1,12 @@
 'use client';
 
 import { needsRolePasskey, normalizeCompanyName, type RolePick } from '@cortex/auth';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { ThemeToggle } from '@/components/theme-toggle';
 import { authClient } from '@/lib/auth-client';
+import { shouldStayOnAuthContinue } from '@/lib/auth-continue';
 import { useCortexUser } from '@/hooks/use-cortex-user';
 
 type Step = 'company' | 'role';
@@ -28,6 +29,18 @@ const EMPLOYEE_ROLE: RoleOption = {
   label: 'Employee',
   hint: 'Straight to employee portal',
 };
+
+function ContinueLoader({ message = 'Taking you to your desk…' }: { message?: string }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
+      <div
+        className="size-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary"
+        aria-hidden
+      />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
 
 function RoleButton({
   opt,
@@ -62,51 +75,62 @@ function RoleButton({
   );
 }
 
-export default function RoleContinueClient() {
+export default function RoleContinueClient({
+  employeeMissing = false,
+}: {
+  employeeMissing?: boolean;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, isLoaded } = useCortexUser();
-  const [step, setStep] = useState<Step>('company');
+  const [step, setStep] = useState<Step>(employeeMissing ? 'role' : 'company');
   const [companyName, setCompanyName] = useState('');
   const [rolePick, setRolePick] = useState<RolePick>('ceo');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resolvingDesk, setResolvingDesk] = useState(false);
 
-  const employeeMissing = searchParams.get('employee') === 'missing';
+  const needsSetup = user ? needsRolePasskey(user.email, user.role) : true;
 
   useEffect(() => {
     if (isLoaded && !user) router.replace('/auth/login');
   }, [isLoaded, user, router]);
 
   useEffect(() => {
-    if (!isLoaded || !user) return;
-    if (needsRolePasskey(user.email, user.role)) return;
+    if (!isLoaded || !user || needsSetup || employeeMissing) return;
+
+    let cancelled = false;
+    setResolvingDesk(true);
 
     void fetch('/api/onboarding/connected-check')
       .then((r) => r.json())
       .then((data: { redirectTo?: string }) => {
+        if (cancelled) return;
         const target = data.redirectTo;
-        if (target && target !== '/auth/continue') {
+        if (target && !shouldStayOnAuthContinue(target)) {
           router.replace(target);
+          return;
         }
+        setResolvingDesk(false);
       })
-      .catch(() => null);
-  }, [isLoaded, user, router]);
+      .catch(() => {
+        if (!cancelled) setResolvingDesk(false);
+      });
 
-  if (!isLoaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-        Loading…
-      </div>
-    );
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, user, needsSetup, employeeMissing, router]);
+
+  if (!isLoaded || resolvingDesk) {
+    return <ContinueLoader message={!isLoaded ? 'Signing you in…' : 'Taking you to your desk…'} />;
   }
 
   if (!user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-        Redirecting…
-      </div>
-    );
+    return <ContinueLoader message="Redirecting…" />;
+  }
+
+  if (!needsSetup && !employeeMissing) {
+    return <ContinueLoader />;
   }
 
   function handleCompanyNext(e: React.FormEvent) {

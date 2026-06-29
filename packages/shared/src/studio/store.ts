@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto';
+
 import { queryWithTenant } from '../db/tenant-pool';
+import { embedText } from '../llm/embeddings';
 import type { TenantContext } from '../tenant/types';
 import {
   DEFAULT_DASHBOARD_LAYOUT,
@@ -254,76 +257,67 @@ export async function listPresence(
   }));
 }
 
-export type LineageNode = {
-  id: string;
-  label: string;
-  type: 'connector' | 'table' | 'metric' | 'document';
-};
+function notebookBlocksToText(title: string, blocks: NotebookBlock[]): string {
+  const lines: string[] = [title.trim(), ''];
+  for (const block of blocks) {
+    const text = block.content.trim();
+    if (!text) continue;
+    if (block.type === 'heading') lines.push(`## ${text}`);
+    else if (block.type === 'bullet') lines.push(`- ${text}`);
+    else if (block.type === 'code') lines.push(`\`\`\`\n${text}\n\`\`\``);
+    else lines.push(text);
+  }
+  return lines.join('\n').trim();
+}
 
-export type LineageEdge = {
-  id: string;
-  from: string;
-  to: string;
-};
+/** Index notebook content into cortex_documents so Brain / Executive Desk can cite it. */
+export async function indexNotebookForBrain(
+  tenant: TenantContext,
+  notebookId: string,
+  userId: string,
+  title: string,
+  blocks: NotebookBlock[],
+): Promise<void> {
+  const content = notebookBlocksToText(title, blocks);
+  if (!content) return;
 
-export async function getDataLineage(tenant: TenantContext): Promise<{
-  nodes: LineageNode[];
-  edges: LineageEdge[];
-}> {
-  const [health, docs] = await Promise.all([
-    queryWithTenant<{ provider: string; status: string }>(
-      tenant,
-      `SELECT provider, status FROM connector_health WHERE tenant_id = $1`,
-      [tenant.tenantId],
-    ),
-    queryWithTenant<{ source: string; count: string }>(
-      tenant,
-      `SELECT COALESCE(metadata->>'source', 'unknown') AS source, COUNT(*)::text AS count
-       FROM cortex_documents WHERE tenant_id = $1
-       GROUP BY 1 ORDER BY count DESC LIMIT 8`,
-      [tenant.tenantId],
-    ),
-  ]);
+  const contentHash = createHash('sha256').update(content).digest('hex');
+  const docId = `studio-nb-${notebookId}`;
 
-  const nodes: LineageNode[] = [];
-  const edges: LineageEdge[] = [];
-
-  for (const h of health.rows) {
-    const id = `conn-${h.provider}`;
-    nodes.push({
-      id,
-      label: h.provider,
-      type: 'connector',
-    });
-    const tableId = `table-${h.provider}`;
-    nodes.push({ id: tableId, label: `${h.provider} docs`, type: 'table' });
-    edges.push({ id: `e-${id}-${tableId}`, from: id, to: tableId });
+  let embedding: number[];
+  try {
+    embedding = await embedText(content.slice(0, 8000));
+  } catch {
+    embedding = new Array(768).fill(0);
   }
 
-  for (const d of docs.rows) {
-    const tableId = `table-src-${d.source}`;
-    if (!nodes.some((n) => n.id === tableId)) {
-      nodes.push({ id: tableId, label: `${d.source} (${d.count})`, type: 'table' });
-    }
-    const metricId = `metric-${d.source}`;
-    nodes.push({ id: metricId, label: `${d.source} KPI`, type: 'metric' });
-    edges.push({ id: `e-${tableId}-${metricId}`, from: tableId, to: metricId });
-    const docId = `doc-${d.source}`;
-    nodes.push({ id: docId, label: 'cortex_documents', type: 'document' });
-    edges.push({ id: `e-${tableId}-${docId}`, from: tableId, to: docId });
-  }
+  const vectorLiteral = `[${embedding.join(',')}]`;
+  const metadata = {
+    source: 'studio',
+    type: 'page',
+    title: title.trim() || 'Untitled notebook',
+    notebook_id: notebookId,
+    user_id: userId,
+  };
 
-  if (!nodes.length) {
-    nodes.push(
-      { id: 'conn-google', label: 'google-workspace', type: 'connector' },
-      { id: 'table-gmail', label: 'gmail messages', type: 'table' },
-      { id: 'metric-inbox', label: 'Inbox KPI', type: 'metric' },
-    );
-    edges.push(
-      { id: 'e1', from: 'conn-google', to: 'table-gmail' },
-      { id: 'e2', from: 'table-gmail', to: 'metric-inbox' },
-    );
-  }
-
-  return { nodes, edges };
+  await queryWithTenant(
+    tenant,
+    `INSERT INTO cortex_documents (id, content, metadata, embedding, tenant_id, content_hash, source_id, document_type, created_at)
+     VALUES ($1, $2, $3::jsonb, $4::vector, $5, $6, $7, 'page', NOW())
+     ON CONFLICT (id) DO UPDATE SET
+       content = EXCLUDED.content,
+       metadata = EXCLUDED.metadata,
+       embedding = EXCLUDED.embedding,
+       content_hash = EXCLUDED.content_hash,
+       created_at = NOW()`,
+    [
+      docId,
+      content,
+      JSON.stringify(metadata),
+      vectorLiteral,
+      tenant.tenantId,
+      contentHash,
+      notebookId,
+    ],
+  );
 }

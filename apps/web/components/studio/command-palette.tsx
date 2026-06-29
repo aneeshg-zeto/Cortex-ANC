@@ -36,7 +36,6 @@ const STATIC_COMMANDS: Omit<CommandItem, 'action'>[] = [
   },
   { id: 'studio-nb', label: 'Open notebook', href: '/studio?tab=notebook', group: 'Studio' },
   { id: 'studio-graph', label: 'Graph explorer', href: '/studio?tab=graph', group: 'Studio' },
-  { id: 'studio-lin', label: 'Data lineage graph', href: '/studio?tab=lineage', group: 'Studio' },
 ];
 
 export function CommandPalette() {
