@@ -125,7 +125,32 @@ export default function OnboardingClient() {
       cancelled = true;
       clearInterval(t);
     };
-  }, [isLoaded, tenantId]);
+  }, [isLoaded, tenantId, status?.status]);
+
+  const autoIngestStarted = useRef(false);
+
+  useEffect(() => {
+    if (!isLoaded || !tenantId || !canOnboard || autoIngestStarted.current) return;
+    if (status?.status !== 'pending' && status?.step !== 'connect_tools') return;
+
+    const hasConnection =
+      connectors.some((c) => c.healthy) ||
+      connectionStatus?.google ||
+      connectionStatus?.github ||
+      connectionStatus?.notion;
+    if (!hasConnection) return;
+
+    autoIngestStarted.current = true;
+    void fetch('/api/onboarding/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+      .then(() => refreshStatus())
+      .catch(() => {
+        autoIngestStarted.current = false;
+      });
+  }, [isLoaded, tenantId, canOnboard, status?.status, status?.step, connectors, connectionStatus]);
 
   useEffect(() => {
     const success = searchParams.get('success');
@@ -194,7 +219,8 @@ export default function OnboardingClient() {
   const githubConnected = isConnected('github');
   const notionConnected = isConnected('notion');
   const coreConnected = googleConnected && githubConnected;
-  const canEnterDesk = googleConnected && (!githubConnected || !needsGitHubScope);
+  const isOrgLead = user?.role === 'ceo' || user?.role === 'super_admin';
+  const canEnterDesk = googleConnected && (!isOrgLead || !githubConnected || !needsGitHubScope);
   const done = status?.status === 'complete';
   const ingesting = status?.status === 'running';
 

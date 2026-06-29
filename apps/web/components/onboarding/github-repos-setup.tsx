@@ -145,6 +145,7 @@ export function GitHubReposSetup() {
         setWorkspaceOrgs((prev) => new Set([...prev, org]));
         setSelected((prev) => [...new Set([...prev, ...repos])]);
       }
+      router.replace(deskPath);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed');
     } finally {
@@ -164,7 +165,6 @@ export function GitHubReposSetup() {
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? 'Save failed');
 
-      // Re-fetch redirect now that scope is saved
       const [checkRes] = await Promise.all([fetch('/api/onboarding/connected-check')]);
       const checkData = (await checkRes.json()) as { redirectTo?: string };
 
@@ -172,6 +172,24 @@ export function GitHubReposSetup() {
       router.push(checkData.redirectTo || '/executive-desk');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed');
+      setSaving(false);
+    }
+  }
+
+  async function skipRepoSelection() {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/github/scope', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skip: true }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Could not continue');
+      router.replace(deskPath);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not continue');
       setSaving(false);
     }
   }
@@ -235,10 +253,18 @@ export function GitHubReposSetup() {
           <div className="rounded-xl border border-dashed border-border p-10 text-center">
             <FolderGit2 className="mx-auto size-10 text-muted-foreground" />
             <p className="mt-3 text-muted-foreground">No GitHub repositories found.</p>
-            <Link
-              href="/onboarding"
-              className="mt-4 inline-block text-sm text-[#14b8a6] hover:underline"
+            <p className="mt-1 text-xs text-muted-foreground">
+              You can continue to the desk and map repos later from Panel.
+            </p>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void skipRepoSelection()}
+              className="mt-6 inline-flex items-center gap-1 rounded-lg bg-[#14b8a6] px-5 py-2 text-xs font-semibold text-[#0a0a0a] disabled:opacity-40"
             >
+              Continue to Executive Desk
+            </button>
+            <Link href="/onboarding" className="mt-4 block text-sm text-[#14b8a6] hover:underline">
               ← Back to connect GitHub
             </Link>
           </div>
@@ -335,10 +361,18 @@ export function GitHubReposSetup() {
             <button
               type="button"
               disabled={saving}
+              onClick={() => void skipRepoSelection()}
+              className="rounded-lg border border-border px-4 py-2 text-xs text-foreground/80 hover:text-foreground disabled:opacity-40"
+            >
+              Skip for now
+            </button>
+            <button
+              type="button"
+              disabled={saving || !allRepos.length}
               onClick={() => confirm(true)}
               className="rounded-lg border border-border px-4 py-2 text-xs text-foreground/80 hover:text-foreground disabled:opacity-40"
             >
-              Skip — ingest all
+              Ingest all repos
             </button>
             <button
               type="button"

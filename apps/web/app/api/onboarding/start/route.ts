@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { auditAction, withAuth } from '@/lib/auth';
-import { startIngestIfAvailable } from '@/lib/ingestion-runtime';
+import { startIngestWithFallback } from '@/lib/ingestion-runtime';
 import { queryWithTenant } from '@cortex/shared';
 
 export const POST = withAuth(
@@ -9,7 +9,7 @@ export const POST = withAuth(
     const body = (await request.json().catch(() => ({}))) as { providers?: string[] };
 
     const providers = body.providers ?? ['google-workspace', 'github'];
-    const workflowId = await startIngestIfAvailable({
+    const { workflowId } = await startIngestWithFallback({
       tenantId: tenant.tenantId,
       providers,
     });

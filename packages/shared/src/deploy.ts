@@ -10,7 +10,7 @@ export function isTemporalIngestEnabled(): boolean {
   return Boolean(process.env.TEMPORAL_ADDRESS?.trim());
 }
 
-/** Bun subprocess ingest on Railway or local dev without Temporal. */
+/** Bun subprocess ingest on Railway or local dev (also fallback when Temporal is down). */
 export function isDirectIngestEnabled(): boolean {
   if (process.env.DISABLE_DIRECT_INGEST === 'true') return false;
   if (isRailwayDeploy()) return true;

@@ -2,6 +2,7 @@ import { queryWithTenant } from '../db/tenant-pool';
 import {
   getGitHubIngestRepos,
   getTenantGitHubScope,
+  isOrgLead,
   listTenantProjects,
 } from '../projects/tenant-projects';
 import type { TenantContext } from '../tenant/types';
@@ -35,17 +36,23 @@ export async function getDeskConnectorStatus(
   };
 }
 
-async function tenantNeedsGitHubScope(tenant: TenantContext): Promise<boolean> {
+/** True when CEO must complete GitHub repo / workspace mapping before the desk. */
+export async function tenantNeedsGitHubScopeVerification(tenant: TenantContext): Promise<boolean> {
+  if (!isOrgLead(tenant.role)) return false;
+
   const [scope, projects, ingestRepos] = await Promise.all([
     getTenantGitHubScope(tenant),
     listTenantProjects(tenant),
     getGitHubIngestRepos(tenant),
   ]);
+
+  if (scope.verifiedAt) return false;
+
   const projectRepoCount = projects.reduce((n, p) => n + p.githubRepos.length, 0);
   return projectRepoCount === 0 && scope.selectedRepos.length === 0 && ingestRepos.length === 0;
 }
 
-/** CEO/client desk entry: Google required; GitHub repo step when GitHub is connected. */
+/** CEO/client desk entry: Google required; GitHub repo step when connected. Ingest runs in background. */
 export async function resolveDeskOnboardingRedirect(
   tenant: TenantContext,
 ): Promise<DeskOnboardingStatus> {
@@ -60,10 +67,7 @@ export async function resolveDeskOnboardingRedirect(
     };
   }
 
-  let needsGitHubScope = false;
-  if (githubConnected) {
-    needsGitHubScope = await tenantNeedsGitHubScope(tenant);
-  }
+  const needsGitHubScope = githubConnected && (await tenantNeedsGitHubScopeVerification(tenant));
 
   const redirectTo =
     githubConnected && needsGitHubScope ? '/onboarding/github-repos' : '/executive-desk';

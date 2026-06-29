@@ -83,7 +83,7 @@ export async function getIngestionProgress(tenantId: string): Promise<IngestionP
     ctx,
     `UPDATE ingestion_progress SET status = 'failed', updated_at = NOW()
      WHERE tenant_id = $1 AND status = 'running'
-       AND updated_at < NOW() - INTERVAL '10 minutes'`,
+       AND updated_at < NOW() - INTERVAL '3 minutes'`,
     [tenantId],
   );
   const r = await queryWithTenant<{

@@ -30,8 +30,9 @@ let total = 0;
 if (provider === 'all') {
   const connected = await listConnectedProviders(tenantId);
   const providers = connected.map((p) => (p === 'google' ? 'google-workspace' : p));
-  const results = await Promise.all(providers.map((p) => resyncOne(p)));
-  total = results.reduce((a, b) => a + b, 0);
+  for (const p of providers) {
+    total += await resyncOne(p);
+  }
 } else {
   total = await resyncOne(provider);
   if (

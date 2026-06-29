@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { auditAction, withAuth } from '@/lib/auth';
 import '@/lib/ensure-env';
-import { startIngestIfAvailable, INGESTION_SKIPPED_MESSAGE } from '@/lib/ingestion-runtime';
+import { startIngestWithFallback, INGESTION_SKIPPED_MESSAGE } from '@/lib/ingestion-runtime';
 import { queryWithTenant } from '@cortex/shared';
 import { canManageWorkspace } from '@cortex/auth';
 
@@ -23,27 +23,19 @@ export const POST = withAuth(
     const raw = body.provider ?? 'google-workspace';
     const provider = PROVIDER_ALIASES[raw] ?? raw;
 
-    let workflowId = await startIngestIfAvailable({
+    const { workflowId, mode } = await startIngestWithFallback({
       tenantId: tenant.tenantId,
       providers: [provider],
     });
 
-    let mode: 'temporal' | 'direct' | 'skipped' = 'temporal';
-
     if (!workflowId) {
-      const { spawnIngestResync } = await import('@/lib/spawn-ingest');
-      const started = spawnIngestResync(tenant.tenantId, provider);
-      if (!started) {
-        return NextResponse.json({
-          success: true,
-          workflowId: null,
-          provider,
-          mode: 'skipped',
-          message: INGESTION_SKIPPED_MESSAGE,
-        });
-      }
-      workflowId = `direct-${provider}-${Date.now()}`;
-      mode = 'direct';
+      return NextResponse.json({
+        success: true,
+        workflowId: null,
+        provider,
+        mode: 'skipped',
+        message: INGESTION_SKIPPED_MESSAGE,
+      });
     }
 
     await queryWithTenant(

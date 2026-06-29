@@ -32,26 +32,21 @@ export const POST = withAuth(
       });
     }
 
-    let workflowId = await startResyncAllIfAvailable(tenant.tenantId);
-    let mode: 'temporal' | 'direct' | 'skipped' = 'temporal';
+    const workflowId = await startResyncAllIfAvailable(tenant.tenantId);
+    const mode: 'temporal' | 'direct' | 'skipped' = workflowId
+      ? workflowId.startsWith('direct-')
+        ? 'direct'
+        : 'temporal'
+      : 'skipped';
 
     if (!workflowId) {
-      const { spawnIngestResyncAll } = await import('@/lib/spawn-ingest');
-      const started = spawnIngestResyncAll(
-        tenant.tenantId,
-        connected.map((p) => (p === 'google' ? 'google-workspace' : p)),
-      );
-      if (!started) {
-        return NextResponse.json({
-          success: true,
-          workflowId: null,
-          providers: connected,
-          mode: 'skipped',
-          message: INGESTION_SKIPPED_MESSAGE,
-        });
-      }
-      workflowId = `direct-all-${Date.now()}`;
-      mode = 'direct';
+      return NextResponse.json({
+        success: true,
+        workflowId: null,
+        providers: connected,
+        mode: 'skipped',
+        message: INGESTION_SKIPPED_MESSAGE,
+      });
     }
 
     const progressKeys = connected.map((p) => (p === 'google' ? 'google-workspace' : p));

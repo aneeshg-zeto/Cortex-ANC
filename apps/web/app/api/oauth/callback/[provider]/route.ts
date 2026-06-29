@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { auditAction } from '@/lib/auth';
-import { startIngestIfAvailable } from '@/lib/ingestion-runtime';
+import { startIngestWithFallback } from '@/lib/ingestion-runtime';
 import {
   accountProviderForOAuth,
   connectorHealthProvider,
@@ -17,7 +17,7 @@ import {
 } from '@cortex/shared';
 
 async function startIngest(tenant: TenantContext, healthProvider: string): Promise<void> {
-  const workflowId = await startIngestIfAvailable({
+  const { workflowId } = await startIngestWithFallback({
     tenantId: tenant.tenantId,
     providers: [healthProvider],
   });

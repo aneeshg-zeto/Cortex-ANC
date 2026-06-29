@@ -10,25 +10,30 @@ import {
   listTenantProjects,
   queryWithTenant,
   setTenantGitHubScope,
+  tenantNeedsGitHubScopeVerification,
   upsertIngestionProgress,
 } from '@cortex/shared';
-import { canManageWorkspace } from '@cortex/auth';
+import { canConnectOnboarding, canManageWorkspace } from '@cortex/auth';
+
+function canViewGitHubSetup(role: string): boolean {
+  return (
+    canManageWorkspace(role as Parameters<typeof canManageWorkspace>[0]) ||
+    canConnectOnboarding(role as Parameters<typeof canConnectOnboarding>[0])
+  );
+}
 
 export const GET = withAuth(
   async (_request, { tenant, user }) => {
-    if (!canManageWorkspace(user.role)) {
+    if (!canViewGitHubSetup(user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const [scope, projects, ingestRepos] = await Promise.all([
+    const [scope, projects, ingestRepos, needsVerification] = await Promise.all([
       getTenantGitHubScope(tenant),
       listTenantProjects(tenant),
       getGitHubIngestRepos(tenant),
+      tenantNeedsGitHubScopeVerification(tenant),
     ]);
-
-    const projectRepoCount = projects.reduce((n, p) => n + p.githubRepos.length, 0);
-    const needsVerification =
-      projectRepoCount === 0 && scope.selectedRepos.length === 0 && ingestRepos.length === 0;
 
     return NextResponse.json({
       selectedRepos: scope.selectedRepos,
@@ -51,7 +56,26 @@ export const POST = withAuth(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = (await request.json()) as { repos?: string[]; ingestAll?: boolean };
+    const body = (await request.json()) as {
+      repos?: string[];
+      ingestAll?: boolean;
+      skip?: boolean;
+    };
+
+    if (body.skip) {
+      await setTenantGitHubScope(tenant, []);
+      try {
+        await indexHrTenantFromContext(tenant);
+      } catch (err) {
+        console.warn('[github/scope] HR index skipped:', err);
+      }
+      return NextResponse.json({
+        ok: true,
+        skipped: true,
+        selectedRepos: [],
+        verifiedAt: new Date().toISOString(),
+      });
+    }
 
     let repos: string[] = [];
     if (body.ingestAll) {
@@ -70,7 +94,11 @@ export const POST = withAuth(
     }
 
     await setTenantGitHubScope(tenant, repos);
-    await indexHrTenantFromContext(tenant);
+    try {
+      await indexHrTenantFromContext(tenant);
+    } catch (err) {
+      console.warn('[github/scope] HR index skipped:', err);
+    }
 
     const workflowId = await startIngestIfAvailable({
       tenantId: tenant.tenantId,

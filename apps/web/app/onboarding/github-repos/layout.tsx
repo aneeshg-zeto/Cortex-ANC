@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { getSessionUser, toTenantContext } from '@/lib/auth';
-import { getDeskConnectorStatus, resolveDeskOnboardingRedirect } from '@cortex/shared';
+import { getDeskConnectorStatus, isOrgLead, resolveDeskOnboardingRedirect } from '@cortex/shared';
 
 export default async function GitHubReposOnboardingLayout({
   children,
@@ -10,6 +10,8 @@ export default async function GitHubReposOnboardingLayout({
 }) {
   const user = await getSessionUser();
   if (!user) redirect('/auth/login');
+
+  if (!isOrgLead(user.role)) redirect('/executive-desk');
 
   const tenant = toTenantContext(user);
   const { googleConnected, githubConnected } = await getDeskConnectorStatus(tenant);

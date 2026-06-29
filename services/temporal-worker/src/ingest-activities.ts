@@ -982,12 +982,15 @@ export async function markIngestCompleteActivity(tenantId: string): Promise<void
     // non-fatal if index missing
   }
   await pool.query(
-    `UPDATE ingestion_progress SET status = 'completed', updated_at = NOW()
+    `UPDATE ingestion_progress SET
+       status = 'completed',
+       processed_documents = GREATEST(processed_documents, total_documents),
+       updated_at = NOW()
      WHERE tenant_id = $1 AND status = 'running'`,
     [tenantId],
   );
   await pool.query(
-    `UPDATE tenant_onboarding SET status = 'complete', step = 'done', updated_at = NOW() WHERE tenant_id = $1`,
+    `UPDATE tenant_onboarding SET status = 'complete', step = 'ready', updated_at = NOW() WHERE tenant_id = $1`,
     [tenantId],
   );
   await pool.end();

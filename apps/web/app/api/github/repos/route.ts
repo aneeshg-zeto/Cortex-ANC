@@ -2,11 +2,18 @@ import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/auth';
 import { groupReposByOrg, listAccessibleGitHubRepos } from '@cortex/shared';
-import { canManageWorkspace } from '@cortex/auth';
+import { canConnectOnboarding, canManageWorkspace } from '@cortex/auth';
+
+function canViewGitHubSetup(role: string): boolean {
+  return (
+    canManageWorkspace(role as Parameters<typeof canManageWorkspace>[0]) ||
+    canConnectOnboarding(role as Parameters<typeof canConnectOnboarding>[0])
+  );
+}
 
 export const GET = withAuth(
   async (_request, { tenant, user }) => {
-    if (!canManageWorkspace(user.role)) {
+    if (!canViewGitHubSetup(user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
