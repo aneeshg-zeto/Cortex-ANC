@@ -38,10 +38,6 @@
       "types": "./dist/hr/employee-upload.d.ts",
       "import": "./dist/hr/employee-upload.js"
     },
-    "./hr/demo-seed": {
-      "types": "./dist/hr/hr-demo-seed.d.ts",
-      "import": "./dist/hr/hr-demo-seed.js"
-    },
     "./studio/types": {
       "types": "./dist/studio/types.d.ts",
       "import": "./dist/studio/types.js"

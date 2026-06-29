@@ -13,8 +13,6 @@ Read in order:
 | 3   | [Executive guide](./executive-guide.md) | CEO, leadership, operators        |
 | 4   | [Client guide](./client-guide.md)       | External customers using Cortex   |
 
-**Reference:** [Demo seed data](./seed-data.md) — companies, tickets, documents, and what the Brain actually knows
-
 ---
 
 **Demo login:** http://localhost:3000/auth/login
