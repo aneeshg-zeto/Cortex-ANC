@@ -4,6 +4,7 @@ import { Inter, Instrument_Serif, JetBrains_Mono } from 'next/font/google';
 
 import { AuthProvider } from '@/components/auth-provider';
 import { CurrencyProvider } from '@/components/currency-provider';
+import { PwaRegister } from '@/components/pwa-register';
 import { ThemeProvider } from '@/components/theme-provider';
 import { THEME_STORAGE_KEY } from '@/lib/theme';
 
@@ -32,6 +33,12 @@ export const metadata: Metadata = {
   title: 'Cortex — Single Brain Platform',
   description:
     'AI-native company platform connecting every business tool into one intelligent system.',
+  manifest: '/manifest.json',
+  appleWebApp: { capable: true, title: 'Cortex', statusBarStyle: 'black-translucent' },
+};
+
+export const viewport = {
+  themeColor: '#0a0a0a',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -47,6 +54,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <Script id="cortex-theme-init" strategy="beforeInteractive">
           {themeInitScript}
         </Script>
+        <PwaRegister />
         <AuthProvider>
           <ThemeProvider>
             <CurrencyProvider>{children}</CurrencyProvider>

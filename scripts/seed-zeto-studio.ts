@@ -16,6 +16,7 @@ import type pg from 'pg';
 import { getPool } from '../packages/shared/src/db/tenant-pool.ts';
 import { seedHrDemoData } from '../packages/shared/src/hr/hr-demo-seed.ts';
 import { syncCalendarEventsToMeetings } from '../packages/shared/src/meetings/meetings-store.ts';
+import { clearIntelDemo, seedIntel } from './seed-intel.ts';
 
 const envPath = path.resolve(import.meta.dir, '../.env');
 if (existsSync(envPath)) {
@@ -240,7 +241,7 @@ async function resolveTenant(pool: pg.Pool): Promise<{
     ]);
     if (!r.rows[0]) throw new Error(`Tenant not found: ${tenantIdArg}`);
     const u = await pool.query<{ id: string; email: string }>(
-      `SELECT id, email FROM "user" WHERE "tenantId" = $1 ORDER BY created_at LIMIT 1`,
+      `SELECT id, email FROM "user" WHERE "tenantId" = $1 ORDER BY "createdAt" LIMIT 1`,
       [tenantIdArg],
     );
     return {
@@ -267,7 +268,7 @@ async function resolveTenant(pool: pg.Pool): Promise<{
     );
     if (!t.rows[0]) throw new Error('No tenants in database. Sign up first.');
     const u = await pool.query<{ id: string; email: string }>(
-      `SELECT id, email FROM "user" WHERE "tenantId" = $1 ORDER BY created_at LIMIT 1`,
+      `SELECT id, email FROM "user" WHERE "tenantId" = $1 ORDER BY "createdAt" LIMIT 1`,
       [t.rows[0].id],
     );
     return {
@@ -649,8 +650,10 @@ async function main() {
     const { tenantId, userId, email } = await resolveTenant(pool);
     console.log(`→ Seeding Zeto Studio for tenant ${tenantId}${email ? ` (${email})` : ''}`);
     await clearTenantDemo(client, tenantId);
+    await clearIntelDemo(client, tenantId);
     await seed(client, tenantId, userId);
     await seedHrDemoData(tenantId, { publishedByUserId: userId });
+    await seedIntel(client, tenantId, userId);
     const { synced, updated } = await syncCalendarEventsToMeetings(tenantId, pool);
     console.log('');
     console.log('✅ Zeto Studio demo seeded');

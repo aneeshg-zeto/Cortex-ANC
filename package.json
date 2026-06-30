@@ -30,6 +30,7 @@
     "db:init": "bash scripts/init-db.sh",
     "db:migrate": "bash scripts/db-migrate.sh",
     "seed:zeto": "bun run scripts/seed-zeto-studio.ts",
+    "smoke:intel": "bun run scripts/smoke-intel.ts",
     "clear:ingestions": "bash scripts/clear-ingestions.sh",
     "adapt:connectors": "bun run scripts/adapt-connectors.ts",
     "services:dev": "bun run --filter '@cortex/integration-service' dev & bun run --filter '@cortex/event-consumer' dev & bun run --filter '@cortex/temporal-worker' dev",

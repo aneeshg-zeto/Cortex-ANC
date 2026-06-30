@@ -1,16 +1,10 @@
 import { redirect } from 'next/navigation';
 
-import { getSessionUser, toTenantContext } from '@/lib/auth';
-import { isDeskRole, resolveDeskOnboardingRedirect } from '@cortex/shared';
+import { ClientsDesk } from '@/components/clients-desk/ClientsDesk';
+import { getSessionUser } from '@/lib/auth';
 
 export default async function ClientsDeskPage() {
   const user = await getSessionUser();
   if (!user) redirect('/auth/login');
-
-  if (isDeskRole(user.role)) {
-    const { redirectTo } = await resolveDeskOnboardingRedirect(toTenantContext(user));
-    redirect(redirectTo);
-  }
-
-  redirect('/executive-desk');
+  return <ClientsDesk />;
 }

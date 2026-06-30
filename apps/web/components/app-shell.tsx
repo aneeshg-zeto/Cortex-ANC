@@ -3,13 +3,20 @@
 import { canAccessMeetings, canAccessPanel } from '@cortex/auth';
 import {
   CalendarDays,
+  Landmark,
   LayoutDashboard,
   LayoutPanelTop,
+  LifeBuoy,
   LogOut,
   Mail,
   PanelLeftClose,
   PanelLeftOpen,
   Plug,
+  Target,
+  TrendingUp,
+  UserPlus,
+  Users,
+  Wallet,
   Wand2,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -42,6 +49,48 @@ const NAV: NavItem[] = [
     show: (role) => canAccessMeetings(role as Parameters<typeof canAccessMeetings>[0]),
   },
   { href: '/connectors', label: 'Connectors', icon: Plug },
+  {
+    href: '/customers',
+    label: 'Customers',
+    icon: Users,
+    show: (role) => canAccessPanel(role as Parameters<typeof canAccessPanel>[0]),
+  },
+  {
+    href: '/sales',
+    label: 'Sales',
+    icon: TrendingUp,
+    show: (role) => canAccessPanel(role as Parameters<typeof canAccessPanel>[0]),
+  },
+  {
+    href: '/finance',
+    label: 'Finance',
+    icon: Wallet,
+    show: (role) => canAccessPanel(role as Parameters<typeof canAccessPanel>[0]),
+  },
+  {
+    href: '/support',
+    label: 'Support',
+    icon: LifeBuoy,
+    show: (role) => canAccessPanel(role as Parameters<typeof canAccessPanel>[0]),
+  },
+  {
+    href: '/hiring',
+    label: 'Hiring',
+    icon: UserPlus,
+    show: (role) => canAccessPanel(role as Parameters<typeof canAccessPanel>[0]),
+  },
+  {
+    href: '/okrs',
+    label: 'OKRs',
+    icon: Target,
+    show: (role) => canAccessPanel(role as Parameters<typeof canAccessPanel>[0]),
+  },
+  {
+    href: '/board',
+    label: 'Board',
+    icon: Landmark,
+    show: (role) => canAccessPanel(role as Parameters<typeof canAccessPanel>[0]),
+  },
   {
     href: '/panel',
     label: 'Panel',

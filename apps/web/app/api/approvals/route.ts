@@ -9,7 +9,7 @@ import { withAuth } from '@/lib/auth';
 const { Pool } = pg;
 
 export const GET = withAuth(
-  async (_request, { tenant, user }) => {
+  async (request, { tenant, user }) => {
     if (!canReviewApprovals(user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -17,13 +17,21 @@ export const GET = withAuth(
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) return NextResponse.json({ approvals: [] });
 
+    const type = new URL(request.url).searchParams.get('type');
+    const params: unknown[] = [tenant.tenantId];
+    let typeClause = '';
+    if (type && type !== 'all') {
+      params.push(type);
+      typeClause = ` AND entity_type = $${params.length}`;
+    }
+
     const pool = new Pool({ connectionString: dbUrl });
     const result = await pool.query(
-      `SELECT id, action_type, connector, payload, status, created_at
+      `SELECT id, entity_type, action_type, connector, title, payload, status, created_at
        FROM cortex_approvals
-       WHERE status = 'pending' AND (tenant_id = $1 OR tenant_id IS NULL)
+       WHERE status = 'pending' AND (tenant_id = $1 OR tenant_id IS NULL)${typeClause}
        ORDER BY created_at DESC LIMIT 50`,
-      [tenant.tenantId],
+      params,
     );
     await pool.end();
     return NextResponse.json({ approvals: result.rows });

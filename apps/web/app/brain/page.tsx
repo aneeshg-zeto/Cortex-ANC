@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import { BrainSearch } from '@/components/brain/BrainSearch';
 
 export default function BrainPage() {
-  redirect('/connectors');
+  return <BrainSearch />;
 }

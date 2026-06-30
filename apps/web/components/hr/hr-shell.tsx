@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import {
   AlertTriangle,
   Banknote,
+  CalendarDays,
+  CalendarRange,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -23,6 +25,8 @@ const NAV: { href: string; label: string; icon: typeof LayoutDashboard; exact?: 
   { href: '/hr/payroll', label: 'Payroll', icon: Banknote },
   { href: '/hr/payslips', label: 'Payslips', icon: FileText },
   { href: '/hr/leave', label: 'Leave', icon: Palmtree },
+  { href: '/hr/pto', label: 'PTO & Leave', icon: CalendarDays },
+  { href: '/hr/team-calendar', label: 'Team calendar', icon: CalendarRange },
   { href: '/hr/emergency', label: 'Emergency', icon: AlertTriangle },
   { href: '/hr/plugins', label: 'Plugins', icon: Plug },
 ];

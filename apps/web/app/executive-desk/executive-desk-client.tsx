@@ -14,8 +14,11 @@ import {
 
 import { AppShell } from '@/components/app-shell';
 import { DeskToolbar } from '@/components/desk-toolbar';
+import { DigestPanel } from '@/components/executive-desk/DigestPanel';
+import { VoiceButton } from '@/components/executive-desk/VoiceButton';
 import { useActiveWorkspace } from '@/hooks/use-active-workspace';
 import { useCortexUser } from '@/hooks/use-cortex-user';
+import { canAccessPanel } from '@cortex/auth';
 
 type DeskMessage = {
   id: string;
@@ -116,48 +119,58 @@ export function ExecutiveDeskPage() {
       subtitle={deskSubtitle}
       badge={<DeskToolbar />}
       footer={
-        <ChatInput
-          value={input}
-          onValueChange={setInput}
-          onSubmit={handleAsk}
-          isLoading={loading}
-          placeholder="Ask about status, emails, repos, HR, or blockers…"
-          variant="dark"
-        />
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1">
+            <ChatInput
+              value={input}
+              onValueChange={setInput}
+              onSubmit={handleAsk}
+              isLoading={loading}
+              placeholder="Ask about status, emails, repos, HR, or blockers…"
+              variant="dark"
+            />
+          </div>
+          <VoiceButton onTranscript={(text) => setInput(input ? `${input} ${text}` : text)} />
+        </div>
       }
     >
-      <div className="mx-auto w-full max-w-4xl px-4 pt-2">
-        {syncing && (
-          <div className="mb-2 rounded-lg border border-[#14b8a6]/20 bg-[#14b8a6]/5 px-3 py-2 text-center text-xs text-[#14b8a6]">
-            Syncing your data… questions may not have full context until sync completes.
+      <div className="flex h-full min-h-0">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="mx-auto w-full max-w-4xl px-4 pt-2">
+            {syncing && (
+              <div className="mb-2 rounded-lg border border-[#14b8a6]/20 bg-[#14b8a6]/5 px-3 py-2 text-center text-xs text-[#14b8a6]">
+                Syncing your data… questions may not have full context until sync completes.
+              </div>
+            )}
           </div>
-        )}
+          <ChatWindow variant="dark" className="h-full">
+            {messages.map((message) => (
+              <ChatMessage key={message.id} role={message.role} variant="dark">
+                {message.role === 'assistant' && (
+                  <ChatMessageAvatar fallback="CX" variant="cortex" theme="dark" />
+                )}
+                <div className="min-w-0 max-w-3xl flex-1">
+                  <ChatMessageContent
+                    markdown={message.role === 'assistant'}
+                    role={message.role}
+                    variant="dark"
+                  >
+                    {message.content}
+                  </ChatMessageContent>
+                  {message.sources && message.sources.length > 0 && (
+                    <SourceCitations sources={message.sources} variant="dark" />
+                  )}
+                </div>
+                {message.role === 'user' && (
+                  <ChatMessageAvatar fallback="You" variant="user" theme="dark" />
+                )}
+              </ChatMessage>
+            ))}
+            {loading && <TypingIndicator className="px-2 py-1" />}
+          </ChatWindow>
+        </div>
+        {user && canAccessPanel(user.role) && <DigestPanel />}
       </div>
-      <ChatWindow variant="dark" className="h-full">
-        {messages.map((message) => (
-          <ChatMessage key={message.id} role={message.role} variant="dark">
-            {message.role === 'assistant' && (
-              <ChatMessageAvatar fallback="CX" variant="cortex" theme="dark" />
-            )}
-            <div className="min-w-0 max-w-3xl flex-1">
-              <ChatMessageContent
-                markdown={message.role === 'assistant'}
-                role={message.role}
-                variant="dark"
-              >
-                {message.content}
-              </ChatMessageContent>
-              {message.sources && message.sources.length > 0 && (
-                <SourceCitations sources={message.sources} variant="dark" />
-              )}
-            </div>
-            {message.role === 'user' && (
-              <ChatMessageAvatar fallback="You" variant="user" theme="dark" />
-            )}
-          </ChatMessage>
-        ))}
-        {loading && <TypingIndicator className="px-2 py-1" />}
-      </ChatWindow>
     </AppShell>
   );
 }

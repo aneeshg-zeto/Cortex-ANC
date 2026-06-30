@@ -30,8 +30,8 @@ const STATIC_COMMANDS: Omit<CommandItem, 'action'>[] = [
   },
   {
     id: 'studio-flow',
-    label: 'Open workflow editor',
-    href: '/studio?tab=workflows',
+    label: 'Open designs (SOPs)',
+    href: '/studio?tab=designs',
     group: 'Studio',
   },
   { id: 'studio-nb', label: 'Open notebook', href: '/studio?tab=notebook', group: 'Studio' },

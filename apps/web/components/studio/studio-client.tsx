@@ -9,7 +9,7 @@ import { WorkflowCanvas } from '@/components/studio/workflow-canvas';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'workflows', label: 'Workflows' },
+  { id: 'designs', label: 'Designs' },
   { id: 'notebook', label: 'Notebook' },
   { id: 'graph', label: 'Graph' },
 ] as const;
@@ -19,7 +19,11 @@ export type StudioTabId = (typeof TABS)[number]['id'];
 export function StudioClient() {
   const searchParams = useSearchParams();
   const raw = searchParams.get('tab');
-  const tab: StudioTabId = TABS.some((t) => t.id === raw) ? (raw as StudioTabId) : 'dashboard';
+  // Back-compat: the old `workflows` tab is now `designs`.
+  const normalized = raw === 'workflows' ? 'designs' : raw;
+  const tab: StudioTabId = TABS.some((t) => t.id === normalized)
+    ? (normalized as StudioTabId)
+    : 'dashboard';
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -43,7 +47,17 @@ export function StudioClient() {
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === 'dashboard' && <DashboardBuilder />}
-        {tab === 'workflows' && <WorkflowCanvas />}
+        {tab === 'designs' && (
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-600 dark:text-amber-400 md:px-6">
+              Documentation &amp; SOPs — these describe steps for humans and are{' '}
+              <strong>not auto-executed</strong>. Execution is manual.
+            </div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <WorkflowCanvas />
+            </div>
+          </div>
+        )}
         {tab === 'notebook' && <NotebookEditor />}
         {tab === 'graph' && <GraphExplorerView />}
       </div>

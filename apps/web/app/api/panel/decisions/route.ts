@@ -1,33 +1,15 @@
 import { NextResponse } from 'next/server';
 
 import { withAuth } from '@/lib/auth';
-import { createDecisionLog, listDecisionLogs } from '@cortex/shared';
+import { searchDecisions } from '@/lib/decisions/search';
+import { canAccessPanel } from '@cortex/auth';
 
-export const GET = withAuth(
-  async (_request, { tenant }) => {
-    const decisions = await listDecisionLogs(tenant);
-    return NextResponse.json({ decisions });
-  },
-  ['admin:read'],
-);
+export const runtime = 'nodejs';
 
-export const POST = withAuth(
-  async (request, { tenant, user }) => {
-    const body = (await request.json()) as {
-      title?: string;
-      body?: string;
-      linkedRefs?: unknown[];
-    };
-    if (!body.title?.trim()) {
-      return NextResponse.json({ error: 'Title required' }, { status: 400 });
-    }
-    const decision = await createDecisionLog(tenant, {
-      title: body.title.trim(),
-      body: String(body.body ?? ''),
-      linkedRefs: body.linkedRefs,
-      createdBy: user.id,
-    });
-    return NextResponse.json({ decision });
-  },
-  ['admin:read'],
-);
+export const GET = withAuth(async (request, { tenant, user }) => {
+  if (!canAccessPanel(user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const q = new URL(request.url).searchParams.get('q') ?? '';
+  return NextResponse.json({ decisions: await searchDecisions(tenant.tenantId, q) });
+});
